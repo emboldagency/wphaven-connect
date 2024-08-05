@@ -2,44 +2,39 @@
 /*
 Plugin Name: WPHaven Connect
 Description: A plugin that provides functionality to connect to WPHaven.
-Version: 0.0.2
+Version: 0.0.4
 Author: Embold
 */
 
-// Prevent direct access to the file
 if (!defined('ABSPATH')) {
     exit;
 }
 
-// Include the WP CLI command
-if (defined('WP_CLI') && WP_CLI) {
-    include __DIR__ . '/includes/wp-cli-commands.php';
-}
-
-// Add action to handle the wp_admin_token parameter
-add_action('init', 'wphaven_handle_wp_admin_token');
-
+require 'vendor/autoload.php';
 require 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+use WPHavenConnect\Providers\ServiceProvider;
 
-$embold_update_checker = PucFactory::buildUpdateChecker(
-    'https://github.com/emboldagency/wphaven-connect/',
-    __FILE__,
-    'wphaven-connect'
-);
+class WPHavenConnect {
 
-// Set authentication and enable release assets
-$embold_update_checker->getVcsApi()->enableReleaseAssets();
+    private $update_checker;
 
-function wphaven_handle_wp_admin_token() {
-    if (isset($_GET['wp_admin_token'])) {
-        $user_id = wp_validate_auth_cookie($_GET['wp_admin_token'], 'admin');
-        if ($user_id) {
-            wp_set_current_user($user_id);
-            wp_set_auth_cookie($user_id);
-            wp_redirect(admin_url());
-            exit;
-        }
+    public function __construct() {
+        $this->init_update_checker();
+        new ServiceProvider();
+    }
+
+    private function init_update_checker() {
+        $this->update_checker = PucFactory::buildUpdateChecker(
+            'https://github.com/emboldagency/wphaven-connect/',
+            __FILE__,
+            'wphaven-connect'
+        );
+        // Set authentication and enable release assets
+        $this->update_checker->getVcsApi()->enableReleaseAssets();
     }
 }
+
+// Initialize the plugin
+new WPHavenConnect();
