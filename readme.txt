@@ -3,7 +3,7 @@ Contributors: itsjsutxan
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.0.5
+Stable tag: 0.1.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.1.0 =
+* Error handling and reporting
 
 = 0.0.5 =
 * Revamp the magic login link

@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPHaven Connect
 Description: A plugin that provides functionality to connect to WPHaven.
-Version: 0.0.5
+Version: 0.1.0
 Author: Embold
 */
 
@@ -22,6 +22,10 @@ class WPHavenConnect {
 
     public function __construct() {
         $this->init_update_checker();
+        add_action('plugins_loaded', [$this, 'init_services'], 0);
+    }
+
+    public function init_services() {
         new ServiceProvider();
     }
 
@@ -31,7 +35,6 @@ class WPHavenConnect {
             __FILE__,
             'wphaven-connect'
         );
-        // Set authentication and enable release assets
         $this->update_checker->getVcsApi()->enableReleaseAssets();
     }
 }
