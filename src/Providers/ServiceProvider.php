@@ -7,6 +7,7 @@ use WPHavenConnect\ErrorHandler;
 class ServiceProvider {
 
     private $providers = [
+        AssetUrlServiceProvider::class,
         CookieServiceProvider::class,
         WordfenceServiceProvider::class,
         CommandLineServiceProvider::class,
