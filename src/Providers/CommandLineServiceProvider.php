@@ -17,8 +17,23 @@ class CommandLineServiceProvider {
         $user_login = $args[0];
         $user = get_user_by('login', $user_login);
 
+        // If the user does not exist, fetch the first created admin-level user
         if (!$user) {
-            \WP_CLI::error("User $user_login does not exist.");
+            $user_query = new \WP_User_Query([
+                'role' => 'administrator',
+                'orderby' => 'registered',
+                'order' => 'ASC',
+                'number' => 1,
+            ]);
+
+            $users = $user_query->get_results();
+
+            if (!empty($users)) {
+                $user = $users[0];
+                \WP_CLI::warning("User $user_login does not exist. Using the first created admin user: " . $user->user_login);
+            } else {
+                \WP_CLI::error("User $user_login does not exist, and no admin user could be found.");
+            }
         }
 
         // Generate a unique token (could be a hash, timestamp, etc.)

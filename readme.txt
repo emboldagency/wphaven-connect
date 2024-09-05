@@ -3,7 +3,7 @@ Contributors: itsjsutxan
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.3.0 =
+* Get the first admin user registered if requested user is missing
 
 = 0.2.0 =
 * Fallback to another URLs assets by setting ASSET_URL constant in wp-config
