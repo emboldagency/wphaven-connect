@@ -3,7 +3,7 @@ Contributors: itsjsutxan
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.3.1 =
+* Only try to push errors to Slack if there's a domain set, aka ignore terminal errors
 
 = 0.3.0 =
 * Get the first admin user registered if requested user is missing

@@ -35,7 +35,7 @@ class ErrorHandler {
     public function handle_shutdown() {
         $error = error_get_last();
 
-        if ($error) {
+        if (isset($_SERVER['HTTP_HOST']) && $error) {
             // This will catch syntax errors, fatal errors, etc.
             $this->send_slack_notification($error);
         }
