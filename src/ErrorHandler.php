@@ -13,7 +13,7 @@ class ErrorHandler {
 
     public function handle_error($errno, $errstr, $errfile, $errline) {
         $error = compact('errno', 'errstr', 'errfile', 'errline');
-        $this->send_slack_notification($error);
+        // $this->send_slack_notification($error);
 
         // Optionally rethrow the error to be caught by shutdown function
         if ($errno === E_ERROR) {
@@ -29,7 +29,7 @@ class ErrorHandler {
             'errfile' => $exception->getFile(),
             'errline' => $exception->getLine()
         ];
-        $this->send_slack_notification($error);
+        // $this->send_slack_notification($error);
     }
 
     public function handle_shutdown() {
@@ -37,24 +37,27 @@ class ErrorHandler {
 
         if (isset($_SERVER['HTTP_HOST']) && $error) {
             // This will catch syntax errors, fatal errors, etc.
-            $this->send_slack_notification($error);
+            // $this->send_slack_notification($error);
         }
     }
 
     private function send_slack_notification($error) {
-        $message = [
-            'domain' => $_SERVER['HTTP_HOST'],
-            'url' => home_url($_SERVER['REQUEST_URI']),
-            'error' => $error['message'] ?? $error['errstr'],
-            'file' => $error['file'] ?? $error['errfile'],
-            'line' => $error['line'] ?? $error['errline'],
-            'type' => $this->get_error_type($error['type'] ?? $error['errno'])
-        ];
-        $response = wp_remote_post('https://webapp--main--wphaven--xan.embold.dev/api/v1/wordpress/errors', [
-            'method' => 'POST',
-            'headers' => ['Content-Type' => 'application/json'],
-            'body' => wp_json_encode($message)
-        ]);
+        // Only send the Slack notification if HTTP_HOST and REQUEST_URI are defined
+        if (isset($_SERVER['HTTP_HOST']) && isset($_SERVER['REQUEST_URI'])) {
+            $message = [
+                'domain' => $_SERVER['HTTP_HOST'],
+                'url' => home_url($_SERVER['REQUEST_URI']),
+                'error' => $error['message'] ?? $error['errstr'],
+                'file' => $error['file'] ?? $error['errfile'],
+                'line' => $error['line'] ?? $error['errline'],
+                'type' => $this->get_error_type($error['type'] ?? $error['errno'])
+            ];
+            $response = wp_remote_post('https://wphaven.io/api/v1/wordpress/errors', [
+                'method' => 'POST',
+                'headers' => ['Content-Type' => 'application/json'],
+                'body' => wp_json_encode($message)
+            ]);
+        }
     }
 
     private function get_error_type($errno) {
