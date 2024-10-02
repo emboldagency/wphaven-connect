@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPHaven Connect
 Description: A plugin that provides functionality to connect to WPHaven.
-Version: 0.3.3
+Version: 0.3.4
 Author: Embold
 */
 

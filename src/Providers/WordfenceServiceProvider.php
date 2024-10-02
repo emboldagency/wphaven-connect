@@ -38,7 +38,7 @@ class WordfenceServiceProvider {
     public function wordfence_api_permissions_check() {
 
         // Whitelisted IP addresses and domains
-        $whitelisted_ips = ['8.42.149.110', '107.10.19.196', '127.0.0.1', '68.183.101.36'];
+        $whitelisted_ips = ['8.42.149.40', '8.42.149.110', '107.10.19.196', '127.0.0.1', '68.183.101.36'];
         // $whitelisted_domains = ['example.com', 'anotherexample.com'];
 
         // Get the client's IP address
