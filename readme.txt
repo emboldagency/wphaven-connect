@@ -3,7 +3,7 @@ Contributors: itsjsutxan
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.3.3 =
+* Allow production IP to fetch Wordfence alerts
 
 = 0.3.2 =
 * Disable sending Slack notifications until site is live due to htpasswd
