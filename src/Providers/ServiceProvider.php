@@ -11,6 +11,7 @@ class ServiceProvider {
         CookieServiceProvider::class,
         WordfenceServiceProvider::class,
         CommandLineServiceProvider::class,
+        PhpVersionServiceProvider::class,
     ];
 
     public function __construct() {
