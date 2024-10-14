@@ -22,10 +22,15 @@ class PhpInfoServiceProvider {
     public function getPhpInfo() {
         $phpVersion = phpversion();
 
+        // first remove the decimal point
+        $phpVersionBasic = str_replace('.', '', $phpVersion);
+        // then get the first 2 characters
+        $phpVersionBasic = substr($phpVersionBasic, 0, 2);
+
         // also return a basic version like 81, 80, 74, etc
         return new WP_REST_Response([
             'php_version' => $phpVersion,
-            'php_version_basic' => substr($phpVersion, 0, 2),
+            'php_version_basic' => $phpVersionBasic,
         ], 200);
     }
 }
