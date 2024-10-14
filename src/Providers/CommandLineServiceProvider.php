@@ -7,7 +7,6 @@ class CommandLineServiceProvider {
     public function register() {
         if (defined('WP_CLI') && WP_CLI) {
             \WP_CLI::add_command('user session create', [$this, 'create_user_session']);
-            \WP_CLI::add_command('server-info', [$this, 'get_server_info']);
         }
 
         // Hook into init to handle magic login
