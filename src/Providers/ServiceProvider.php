@@ -12,8 +12,8 @@ class ServiceProvider {
         CookieServiceProvider::class,
         WordfenceServiceProvider::class,
         CommandLineServiceProvider::class,
+        ServerInfoServiceProvider::class,
         PhpInfoServiceProvider::class,
-        DbInfoServiceProvider::class,
     ];
 
     public function __construct() {

@@ -3,7 +3,7 @@ Contributors: itsjsutxan
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.4.2 =
+* Combine PHP and DB API routes into one /server-info route. Add a wp-cli command for fetching it
 
 = 0.4.1 =
 * Fix for the PHP Basic version number string
