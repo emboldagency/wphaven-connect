@@ -12,7 +12,7 @@ class WordfenceServiceProvider {
         register_rest_route('wphaven-connect/v1', '/wordfence-scan-results', [
             'methods' => 'GET',
             'callback' => [$this, 'get_wordfence_scan_results'],
-            'permission_callback' => [$this, 'wordfence_api_permissions_check'],
+            'permission_callback' => [ServiceProvider::class, 'apiPermissionsCheck'],  // Use centralized permissions
         ]);
     }
 
@@ -33,35 +33,5 @@ class WordfenceServiceProvider {
         }
 
         return $scan_results;
-    }
-
-    public function wordfence_api_permissions_check() {
-
-        // Whitelisted IP addresses and domains
-        $whitelisted_ips = ['8.42.149.40', '8.42.149.110', '107.10.19.196', '127.0.0.1', '68.183.101.36'];
-        // $whitelisted_domains = ['example.com', 'anotherexample.com'];
-
-        // Get the client's IP address
-        $client_ip = $_SERVER['REMOTE_ADDR'];
-
-        if (isset($_GET['debug'])) {
-            return true;
-        }
-
-        // Check if IP is whitelisted
-        if (!in_array($client_ip, $whitelisted_ips)) {
-            return new \WP_Error('forbidden', "{$client_ip} is not whitelisted", ['status' => 403]);
-        }
-
-        // // Get the referer domain
-        // $referer = $_SERVER['HTTP_REFERER'];
-        // $referer_domain = parse_url($referer, PHP_URL_HOST);
-
-        // // Check if referer domain is whitelisted
-        // if (!in_array($referer_domain, $whitelisted_domains)) {
-        //     return new \WP_Error('forbidden', 'Your domain is not whitelisted', ['status' => 403]);
-        // }
-
-        return true;
     }
 }

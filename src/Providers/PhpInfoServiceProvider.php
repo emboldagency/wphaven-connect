@@ -5,22 +5,23 @@ namespace WPHavenConnect\Providers;
 use WP_REST_Server;
 use WP_REST_Response;
 
-class PhpVersionServiceProvider {
+class PhpInfoServiceProvider {
 
     public function register() {
-        add_action('rest_api_init', [$this, 'registerPhpVersionEndpoint']);
+        add_action('rest_api_init', [$this, 'registerPhpInfoEndpoint']);
     }
 
-    public function registerPhpVersionEndpoint() {
-        register_rest_route('wphaven-connect/v1', '/php-version', [
+    public function registerPhpInfoEndpoint() {
+        register_rest_route('wphaven-connect/v1', '/php-info', [
             'methods'  => WP_REST_Server::READABLE,
-            'callback' => [$this, 'getPhpVersion'],
-            'permission_callback' => '__return_true', // Adjust as necessary
+            'callback' => [$this, 'getPhpInfo'],
+            'permission_callback' => [ServiceProvider::class, 'apiPermissionsCheck'],  // Use centralized permissions
         ]);
     }
 
-    public function getPhpVersion() {
+    public function getPhpInfo() {
         $phpVersion = phpversion();
+
         // also return a basic version like 81, 80, 74, etc
         return new WP_REST_Response([
             'php_version' => $phpVersion,

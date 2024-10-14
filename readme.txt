@@ -3,7 +3,7 @@ Contributors: itsjsutxan
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.3.4
+Stable tag: 0.4.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.4.0 =
+* API endpoints for PHP and DB information
 
 = 0.3.4 =
 * Whitelist the office static IP
