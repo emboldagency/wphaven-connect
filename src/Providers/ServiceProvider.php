@@ -14,6 +14,7 @@ class ServiceProvider {
         CommandLineServiceProvider::class,
         ServerInfoServiceProvider::class,
         PhpInfoServiceProvider::class,
+        ClientAlertsProvider::class,
     ];
 
     public function __construct() {
