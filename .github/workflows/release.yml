@@ -29,7 +29,7 @@ jobs:
           composer install --no-dev
 
       - name: Build distribution archive
-        run: wp dist-archive . --create-target --target=dist/
+        run: wp dist-archive . dist --create-target-dir
 
       - name: Get zip file name
         id: get_zip_name
