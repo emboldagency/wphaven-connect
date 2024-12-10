@@ -1,10 +1,14 @@
 <?php
-/*
-Plugin Name: WPHaven Connect
-Description: A plugin that provides functionality to connect to WPHaven.
-Version: 0.5.0
-Author: Embold
-*/
+/**
+ * @wordpress-plugin
+ * Plugin Name:        WPHaven Connect
+ * Plugin URI:         https://embold.com
+ * Description:        A plugin that provides functionality to connect to WPHaven.
+ * Version:            0.5.0
+ * Author:             emBold
+ * Author URI:         https://embold.com/
+ * Primary Branch:     master
+ */
 
 if (!defined('ABSPATH')) {
     exit;

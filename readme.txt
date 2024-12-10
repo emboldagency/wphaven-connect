@@ -1,5 +1,5 @@
 === WPHaven Connect ===
-Contributors: itsjsutxan
+Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
