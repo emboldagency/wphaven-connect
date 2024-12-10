@@ -29,11 +29,11 @@ jobs:
           composer install --no-dev
 
       - name: Build distribution archive
-        run: wp dist-archive . --path=./
+        run: wp dist-archive . --create-target --target=dist/
 
       - name: Get zip file name
         id: get_zip_name
-        run: echo "ZIP_NAME=$(basename $(find . -name '*.zip'))" >> $GITHUB_ENV
+        run: echo "ZIP_NAME=dist/$(basename $(find ./dist -name '*.zip'))" >> $GITHUB_ENV
 
       - name: Release
         uses: softprops/action-gh-release@v2

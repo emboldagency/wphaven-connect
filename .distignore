@@ -13,6 +13,7 @@
 bin
 composer.json
 composer.lock
+dist
 Gruntfile.js
 node_modules
 package.json
