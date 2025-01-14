@@ -2,6 +2,9 @@
     "autoload": {
         "psr-4": {
             "WPHavenConnect\\": "src/"
-        }
+        },
+        "classmap": [
+            "src/Providers/ServiceProvider.php"
+        ]
     }
 }

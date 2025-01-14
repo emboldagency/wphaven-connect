@@ -4,7 +4,7 @@
  * Plugin Name:        WPHaven Connect
  * Plugin URI:         https://embold.com
  * Description:        A plugin that provides functionality to connect to WPHaven.
- * Version:            0.5.0
+ * Version:            0.6.0
  * Author:             emBold
  * Author URI:         https://embold.com/
  * Primary Branch:     master
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-require 'vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 require 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
