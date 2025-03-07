@@ -13,7 +13,8 @@ class ErrorHandler {
 
     public function handle_error($errno, $errstr, $errfile, $errline) {
         $error = compact('errno', 'errstr', 'errfile', 'errline');
-        // $this->send_slack_notification($error);
+
+        $this->send_slack_notification($error);
 
         // Optionally rethrow the error to be caught by shutdown function
         if ($errno === E_ERROR) {
@@ -29,7 +30,8 @@ class ErrorHandler {
             'errfile' => $exception->getFile(),
             'errline' => $exception->getLine()
         ];
-        // $this->send_slack_notification($error);
+
+        $this->send_slack_notification($error);
     }
 
     public function handle_shutdown() {
@@ -37,7 +39,7 @@ class ErrorHandler {
 
         if (isset($_SERVER['HTTP_HOST']) && $error) {
             // This will catch syntax errors, fatal errors, etc.
-            // $this->send_slack_notification($error);
+            $this->send_slack_notification($error);
         }
     }
 
