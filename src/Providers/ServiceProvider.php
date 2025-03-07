@@ -15,6 +15,7 @@ class ServiceProvider {
         ServerInfoServiceProvider::class,
         PhpInfoServiceProvider::class,
         ClientAlertsProvider::class,
+        WooCommerceServiceProvider::class,
     ];
 
     public function __construct() {
@@ -35,7 +36,7 @@ class ServiceProvider {
     public static function apiPermissionsCheck() {
         // Whitelisted IP addresses and domains
         $whitelisted_ips = [
-            '107.10.19.196', // xan
+            '107.10.14.63', // xan
             '127.0.0.1', // localhost
             '8.42.149.40', // office
             '68.183.101.36', // wphaven

@@ -52,7 +52,7 @@ class ErrorHandler {
                 'line' => $error['line'] ?? $error['errline'],
                 'type' => $this->get_error_type($error['type'] ?? $error['errno'])
             ];
-            $response = wp_remote_post('https://wphaven.io/api/v1/wordpress/errors', [
+            $response = wp_remote_post('https://wphaven.app/api/v1/wordpress/errors', [
                 'method' => 'POST',
                 'headers' => ['Content-Type' => 'application/json'],
                 'body' => wp_json_encode($message)

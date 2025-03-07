@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.6.0
+Stable tag: 0.7.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.7.0 =
+* Globally block WooCommerce tracking
 
 = 0.6.0 =
 * Isolate the class autoloader to avoid conflicts from any other composer.json
