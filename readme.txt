@@ -12,6 +12,9 @@ Requires PHP: 7.4
 
 == Changelog ==
 
+= 0.9.1 =
+* Enqueue environment indicator stylesheet on the frontend for logged in users
+
 = 0.9.0 =
 * Display an environment indicator in the admin bar
 

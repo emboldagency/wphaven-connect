@@ -9,7 +9,8 @@ class AdminBarServiceProvider
     public function register()
     {
         add_action('admin_bar_menu', [$this, 'add_environment_indicator_to_admin_bar'], 999);
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_environment_indicator_css']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_environment_indicator_admin_css']);
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_environment_indicator_css']);
     }
 
     public function add_environment_indicator_to_admin_bar($wp_admin_bar)
@@ -58,8 +59,15 @@ class AdminBarServiceProvider
         $wp_admin_bar->add_node($environment_indicator_node);
     }
 
-    function enqueue_environment_indicator_css() {
+    function enqueue_environment_indicator_admin_css() {
         wp_enqueue_style('environment-indicator', plugins_url('../assets/css/environment-indicator.css', __FILE__));
+    }
+
+    function enqueue_environment_indicator_css() {
+        // If the user is logged in and not in the admin area, enqueue the CSS
+        if (is_user_logged_in() && !is_admin()) {
+            wp_enqueue_style('environment-indicator', plugins_url('../assets/css/environment-indicator.css', __FILE__));
+        }
     }
 
     private function determine_environment()
