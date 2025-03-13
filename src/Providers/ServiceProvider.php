@@ -16,6 +16,7 @@ class ServiceProvider {
         PhpInfoServiceProvider::class,
         ClientAlertsProvider::class,
         WooCommerceServiceProvider::class,
+        AdminBarServiceProvider::class,
     ];
 
     public function __construct() {
