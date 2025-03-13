@@ -1,0 +1,45 @@
+#wpadminbar #wp-toolbar li#wp-admin-bar-environment-indicator {
+    background-color: var(--background-color);
+
+    &:hover {
+        background-color: #000;
+
+        span.ab-label,
+        span.ab-icon {
+            color: #fff;
+        }
+    }
+
+    span.ab-icon {
+        display: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif !important;
+    }
+
+    span.ab-icon,
+    span.ab-label {
+        color: var(--text-color);
+    }
+}
+
+@media screen and (max-width: 782px) {
+    #wpadminbar #wp-toolbar li#wp-admin-bar-environment-indicator {
+        display: block;
+
+        &>.ab-item {
+            span.ab-icon {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                text-transform: uppercase;
+                font-weight: 600 !important;
+                font-size: 15px !important;
+                overflow: hidden;
+                white-space: nowrap;
+            }
+
+            span.ab-label {
+                display: none;
+            }
+        }
+    }
+}
