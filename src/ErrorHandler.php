@@ -18,7 +18,9 @@ class ErrorHandler {
         }
 
         $error = compact('errno', 'errstr', 'errfile', 'errline');
+
         $this->send_slack_notification($error);
+
         return false; // Ensure fatal errors are not suppressed
     }
 
@@ -43,16 +45,24 @@ class ErrorHandler {
     }
 
     private function send_slack_notification($error) {
-        // Only send the Slack notification if HTTP_HOST and REQUEST_URI are defined
-        if (isset($_SERVER['HTTP_HOST']) && isset($_SERVER['REQUEST_URI'])) {
+        $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
+
+        // Only send the Slack notification if conditions are met
+        if (
+            isset($_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI']) &&
+            strpos($error_type, 'Error') !== false &&
+            strpos($_SERVER['HTTP_HOST'], 'wphaven.dev') === false &&
+            strpos($_SERVER['HTTP_HOST'], 'embold.net') === false
+        ) {
             $message = [
                 'domain' => $_SERVER['HTTP_HOST'],
                 'url' => home_url($_SERVER['REQUEST_URI']),
                 'error' => $error['message'] ?? $error['errstr'],
                 'file' => $error['file'] ?? $error['errfile'],
                 'line' => $error['line'] ?? $error['errline'],
-                'type' => $this->get_error_type($error['type'] ?? $error['errno'])
+                'type' => $error_type
             ];
+
             $response = wp_remote_post('https://wphaven.app/api/v1/wordpress/errors', [
                 'method' => 'POST',
                 'headers' => ['Content-Type' => 'application/json'],
