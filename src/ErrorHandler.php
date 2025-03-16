@@ -12,16 +12,12 @@ class ErrorHandler {
     }
 
     public function handle_error($errno, $errstr, $errfile, $errline) {
-        // Ignore non-fatal errors
-        if (!in_array($errno, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR])) {
-            return true; // Ignore non-fatal errors
-        }
-
         $error = compact('errno', 'errstr', 'errfile', 'errline');
 
         $this->send_slack_notification($error);
 
-        return false; // Ensure fatal errors are not suppressed
+        // Return false for fatal errors so PHP shows them
+        return !in_array($errno, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR]);
     }
 
     public function handle_exception($exception) {
@@ -33,14 +29,43 @@ class ErrorHandler {
         ];
 
         $this->send_slack_notification($error);
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            if (php_sapi_name() !== 'cli') {
+                $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
+
+                $message = $exception->getMessage();
+
+                echo "<p><strong>{$error_type}</strong>: {$message}</p>";
+                echo "<pre>{$exception->getTraceAsString()}</pre>";
+            }
+        }
     }
 
     public function handle_shutdown() {
         $error = error_get_last();
 
-        if (isset($_SERVER['HTTP_HOST']) && $error && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR])) {
-            // This will catch syntax errors, fatal errors, etc.
+        if ($error && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR])) {
             $this->send_slack_notification($error);
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            if (php_sapi_name() !== 'cli') {
+                $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
+
+                $message = $error['message'];
+
+                echo "<p><strong>{$error_type}</strong>: {$message}</p>";
+            }
+        } else {
+            if (function_exists('wp_die')) {
+                // Correctly trigger the standard WordPress error page
+                wp_die(
+                    __('There has been a critical error on this website.'),
+                    __('Critical Error'),
+                    ['response' => 500]
+                );
+            }
         }
     }
 

@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.9.2
+Stable tag: 0.9.3
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.9.3 =
+* Filter out all notice types, warning types, and non-production domains from this end of the API
 
 = 0.9.2 =
 * Filter out all notice types, warning types, and non-production domains from this end of the API
