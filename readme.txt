@@ -13,7 +13,11 @@ Requires PHP: 7.4
 == Changelog ==
 
 = 0.9.3 =
+<<<<<<< HEAD
 * Filter out all notice types, warning types, and non-production domains from this end of the API
+=======
+* Add a pretty printed and more helpful stacktrace
+>>>>>>> 1b5a696 (Add a pretty printed and more helpful stacktrace)
 
 = 0.9.2 =
 * Filter out all notice types, warning types, and non-production domains from this end of the API
