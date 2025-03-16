@@ -45,26 +45,28 @@ class ErrorHandler {
     public function handle_shutdown() {
         $error = error_get_last();
 
-        if ($error && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR])) {
+        // Only consider these "fatal" like WordPress Core does
+        $fatal_error_types = [
+            E_ERROR,
+            E_PARSE,
+            E_CORE_ERROR,
+            E_USER_ERROR,
+            E_COMPILE_ERROR,
+            E_RECOVERABLE_ERROR
+        ];
+
+        if ($error && in_array($error['type'], $fatal_error_types)) {
             $this->send_slack_notification($error);
 
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                if (php_sapi_name() !== 'cli') {
-                    $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
-
-                    $message = $error['message'];
-
-                    echo "<p><strong>{$error_type}</strong>: {$message}</p>";
-                }
-            } else {
-                if (function_exists('wp_die')) {
-                    // Correctly trigger the standard WordPress error page
-                    wp_die(
-                        __('There has been a critical error on this website.'),
-                        __('Critical Error'),
-                        ['response' => 500]
-                    );
-                }
+            if (defined('WP_DEBUG') && WP_DEBUG && php_sapi_name() !== 'cli') {
+                $error_type = $this->get_error_type($error['type']);
+                echo "<p><strong>{$error_type}</strong>: {$error['message']}</p>";
+            } elseif (function_exists('wp_die')) {
+                wp_die(
+                    __('There has been a critical error on this website.'),
+                    __('Critical Error'),
+                    ['response' => 500]
+                );
             }
         }
     }
@@ -99,12 +101,22 @@ class ErrorHandler {
     private function get_error_type($errno) {
         $types = [
             E_ERROR             => 'Fatal Error',
+            E_WARNING           => 'Warning',
+            E_PARSE             => 'Parse Error',
+            E_NOTICE            => 'Notice',
             E_CORE_ERROR        => 'Core Error',
+            E_CORE_WARNING      => 'Core Warning',
             E_COMPILE_ERROR     => 'Compile Error',
+            E_COMPILE_WARNING   => 'Compile Warning',
             E_USER_ERROR        => 'User Error',
-            E_RECOVERABLE_ERROR => 'Recoverable Error'
+            E_USER_WARNING      => 'User Warning',
+            E_USER_NOTICE       => 'User Notice',
+            E_STRICT            => 'Strict Notice',
+            E_RECOVERABLE_ERROR => 'Recoverable Error',
+            E_DEPRECATED        => 'Deprecated',
+            E_USER_DEPRECATED   => 'User Deprecated',
         ];
 
-        return $types[$errno] ?? 'Unknown Error';
+        return $types[$errno] ?? 'Unknown Err Type';
     }
 }

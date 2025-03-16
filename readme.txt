@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.9.4
+Stable tag: 0.9.5
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.9.5 =
+* Use the same error filter as the WP Core for what is considered worth notifying about
 
 = 0.9.4 =
 * Don't handle shutdown when not in an error state
