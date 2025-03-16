@@ -47,24 +47,24 @@ class ErrorHandler {
 
         if ($error && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR])) {
             $this->send_slack_notification($error);
-        }
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            if (php_sapi_name() !== 'cli') {
-                $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                if (php_sapi_name() !== 'cli') {
+                    $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
 
-                $message = $error['message'];
+                    $message = $error['message'];
 
-                echo "<p><strong>{$error_type}</strong>: {$message}</p>";
-            }
-        } else {
-            if (function_exists('wp_die')) {
-                // Correctly trigger the standard WordPress error page
-                wp_die(
-                    __('There has been a critical error on this website.'),
-                    __('Critical Error'),
-                    ['response' => 500]
-                );
+                    echo "<p><strong>{$error_type}</strong>: {$message}</p>";
+                }
+            } else {
+                if (function_exists('wp_die')) {
+                    // Correctly trigger the standard WordPress error page
+                    wp_die(
+                        __('There has been a critical error on this website.'),
+                        __('Critical Error'),
+                        ['response' => 500]
+                    );
+                }
             }
         }
     }
