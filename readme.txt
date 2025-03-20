@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.9.5
+Stable tag: 0.9.6
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.9.6 =
+* Don't notify WP Haven Wordfence API about files that have been ignored
 
 = 0.9.5 =
 * Use the same error filter as the WP Core for what is considered worth notifying about

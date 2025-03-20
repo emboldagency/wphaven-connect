@@ -25,7 +25,7 @@ class WordfenceServiceProvider {
             return [];
         }
 
-        $query = "SELECT * FROM {$table_name} WHERE type = 'knownfile' ORDER BY time DESC LIMIT 100";
+        $query = "SELECT * FROM {$table_name} WHERE type = 'knownfile' AND status != 'ignoreP' ORDER BY time DESC LIMIT 100";
         $scan_results = $wpdb->get_results($query, OBJECT);
 
         if ($scan_results === null) {
