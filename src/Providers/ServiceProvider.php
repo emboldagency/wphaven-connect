@@ -17,6 +17,7 @@ class ServiceProvider {
         ClientAlertsProvider::class,
         WooCommerceServiceProvider::class,
         AdminBarServiceProvider::class,
+        DisableMailServiceProvider::class,
     ];
 
     public function __construct() {
