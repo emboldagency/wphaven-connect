@@ -79,16 +79,32 @@ class ErrorHandler {
             isset($_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI']) &&
             strpos($error_type, 'Error') !== false &&
             strpos($_SERVER['HTTP_HOST'], 'wphaven.dev') === false &&
-            strpos($_SERVER['HTTP_HOST'], 'embold.net') === false
+            (strpos($_SERVER['HTTP_HOST'], 'haventest') !== false || strpos($_SERVER['HTTP_HOST'], 'embold.net') === false)
         ) {
+            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+            $bot_likelihood = $this->get_bot_likelihood($user_agent);
+
             $message = [
-                'domain' => $_SERVER['HTTP_HOST'],
+                'domain' => $_SERVER['HTTP_HOST'] ?? 'Unknown',
+                'url' => isset($_SERVER['REQUEST_URI']) ? home_url($_SERVER['REQUEST_URI']) : home_url(),
                 'url' => home_url($_SERVER['REQUEST_URI']),
                 'error' => $error['message'] ?? $error['errstr'],
                 'file' => $error['file'] ?? $error['errfile'],
                 'line' => $error['line'] ?? $error['errline'],
-                'type' => $error_type
+                'type' => $error_type,
+                'user_agent' => $user_agent,
+                'bot_likelihood' => $bot_likelihood,
+                'referrer' => $_SERVER['HTTP_REFERER'] ?? 'None',
+                'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'Unknown',
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+                'wp_memory_usage' => round(memory_get_usage() / 1024 / 1024, 2) . 'MB / ' .
+   (defined('WP_MEMORY_LIMIT') ? round(wp_convert_hr_to_bytes(WP_MEMORY_LIMIT) / 1024 / 1024, 2) . 'MB' : 'Unknown'),
+                'execution_time' => isset($_SERVER["REQUEST_TIME_FLOAT"])
+    ? round(microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"], 4) . 's'
+    : 'Unknown',
             ];
+
+            var_dump($message);
 
             $response = wp_remote_post('https://wphaven.app/api/v1/wordpress/errors', [
                 'method' => 'POST',
@@ -96,6 +112,24 @@ class ErrorHandler {
                 'body' => wp_json_encode($message)
             ]);
         }
+    }
+
+    private function get_bot_likelihood($user_agent) {
+        $known_bots = [
+            'googlebot', 'bingbot', 'yandexbot', 'duckduckbot', 'baiduspider',
+            'semrushbot', 'ahrefsbot', 'facebookexternalhit', 'twitterbot',
+            'slackbot', 'discordbot', 'linkedinbot', 'gptbot', 'chatgpt', 'claude', 'crawler', 'spider', 'bot'
+        ];
+
+        $likely_bots = [];
+
+        $user_agent_lower = strtolower($user_agent);
+
+        if (preg_match('/(' . implode('|', $known_bots) . ')/i', $user_agent_lower)) {
+            return 'Bot';
+        }
+
+        return 'Likely Human';
     }
 
     private function get_error_type($errno) {

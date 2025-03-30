@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.10.0
+Stable tag: 0.11.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.11.0 =
+* Add bot likelihood, user agent, IP address, referrer, and more to error monitor
 
 = 0.10.0 =
 * Block sending emails on local, development, maintenance, and staging environments
