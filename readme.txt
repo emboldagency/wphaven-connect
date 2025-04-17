@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.12.0
+Stable tag: 0.12.1
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.12.1 =
+* Set transient if WP isn't completely dead to only send the error to WP Haven every 5 minutes
 
 = 0.12.0 =
 * Allow sending email in local or staging by setting DISABLE_MAIL to false in the wp-config.php of local or staging.

@@ -30,16 +30,7 @@ class ErrorHandler {
 
         $this->send_slack_notification($error);
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            if (php_sapi_name() !== 'cli') {
-                $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
-
-                $message = $exception->getMessage();
-
-                echo "<p><strong>{$error_type}</strong>: {$message}</p>";
-                echo "<pre>{$exception->getTraceAsString()}</pre>";
-            }
-        }
+        throw $exception;
     }
 
     public function handle_shutdown() {
@@ -57,18 +48,22 @@ class ErrorHandler {
 
         if ($error && in_array($error['type'], $fatal_error_types)) {
             $this->send_slack_notification($error);
-
-            if (defined('WP_DEBUG') && WP_DEBUG && php_sapi_name() !== 'cli') {
-                $error_type = $this->get_error_type($error['type']);
-                echo "<p><strong>{$error_type}</strong>: {$error['message']}</p>";
-            } elseif (function_exists('wp_die')) {
-                wp_die(
-                    __('There has been a critical error on this website.'),
-                    __('Critical Error'),
-                    ['response' => 500]
-                );
-            }
         }
+    }
+
+    private function should_notify_slack(): bool {
+        if (function_exists('get_transient') && function_exists('set_transient')) {
+            $key = 'wphaven_slack_error_sent';
+
+            if (get_transient($key)) {
+                return false;
+            }
+
+            // Set throttle lock for 5 minutes
+            set_transient($key, true, 5 * MINUTE_IN_SECONDS);
+        }
+
+        return true;
     }
 
     private function send_slack_notification($error) {
@@ -104,13 +99,13 @@ class ErrorHandler {
     : 'Unknown',
             ];
 
-            var_dump($message);
-
-            $response = wp_remote_post('https://wphaven.app/api/v1/wordpress/errors', [
-                'method' => 'POST',
-                'headers' => ['Content-Type' => 'application/json'],
-                'body' => wp_json_encode($message)
-            ]);
+            if ($this->should_notify_slack()) {
+                $response = wp_remote_post('https://wphaven.app/api/v1/wordpress/errors', [
+                    'method' => 'POST',
+                    'headers' => ['Content-Type' => 'application/json'],
+                    'body' => wp_json_encode($message)
+                ]);
+            }
         }
     }
 
