@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.12.1
+Stable tag: 0.13.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.13.0 =
+* Add terminal command `wp homepage edit` to return the admin URL of the home page
 
 = 0.12.1 =
 * Set transient if WP isn't completely dead to only send the error to WP Haven every 5 minutes

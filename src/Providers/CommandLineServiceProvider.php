@@ -2,11 +2,14 @@
 
 namespace WPHavenConnect\Providers;
 
+use WP_CLI;
+
 class CommandLineServiceProvider {
 
     public function register() {
         if (defined('WP_CLI') && WP_CLI) {
-            \WP_CLI::add_command('user session create', [$this, 'create_user_session']);
+            WP_CLI::add_command('user session create', [$this, 'create_user_session']);
+            WP_CLI::add_command('homepage edit', [$this, 'edit_homepage']);
         }
 
         // Hook into init to handle magic login
@@ -30,9 +33,9 @@ class CommandLineServiceProvider {
 
             if (!empty($users)) {
                 $user = $users[0];
-                \WP_CLI::warning("User $user_login does not exist. Using the first created admin user: " . $user->user_login);
+                WP_CLI::warning("User $user_login does not exist. Using the first created admin user: " . $user->user_login);
             } else {
-                \WP_CLI::error("User $user_login does not exist, and no admin user could be found.");
+                WP_CLI::error("User $user_login does not exist, and no admin user could be found.");
             }
         }
 
@@ -43,7 +46,7 @@ class CommandLineServiceProvider {
         // Create a custom login URL with the token
         $login_url = add_query_arg('magic_login', $token, admin_url());
 
-        \WP_CLI::line(json_encode(['login_url' => $login_url]));
+        WP_CLI::line(json_encode(['login_url' => $login_url]));
     }
 
     public function handle_magic_login() {
@@ -71,6 +74,34 @@ class CommandLineServiceProvider {
             } else {
                 wp_die('Invalid or expired token.');
             }
+        }
+    }
+
+    public function edit_homepage()
+    {
+        $home_page_id = get_option('page_on_front');
+
+        if ($home_page_id) {
+            $post = get_post($home_page_id);
+
+            if (!$post) {
+                WP_CLI::error("No post found with ID $home_page_id.");
+            }
+
+            if ($post->post_status === 'trash') {
+                WP_CLI::error("Home page with ID $home_page_id is in Trash.");
+            }
+
+            if ($post->post_type !== 'page') {
+                WP_CLI::error("Home page ID $home_page_id is not a page (it's a {$post->post_type}).");
+            }
+
+            // Build the edit URL manually instead of using get_edit_post_link()
+            $edit_url = admin_url('post.php?post=' . $home_page_id . '&action=edit');
+
+            WP_CLI::line(json_encode(['edit_url' => $edit_url]));
+        } else {
+            WP_CLI::error("Home page is not set.");
         }
     }
 }
