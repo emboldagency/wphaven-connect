@@ -3,7 +3,7 @@ Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.3.1
-Stable tag: 0.14.0
+Stable tag: 0.15.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,9 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.15.0 =
+* Add Docker Compose configuration for local development environment
 
 = 0.14.0 =
 * Allow Mailgun "Test Configuration" button to still work when mail is disabled. Add CLI command to send test email.
