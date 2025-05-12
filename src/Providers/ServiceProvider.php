@@ -16,7 +16,7 @@ class ServiceProvider {
         PhpInfoServiceProvider::class,
         ClientAlertsProvider::class,
         WooCommerceServiceProvider::class,
-        AdminBarServiceProvider::class,
+        EnvironmentIndicatorAdminBarBadgeProvider::class,
         DisableMailServiceProvider::class,
     ];
 
