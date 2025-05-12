@@ -2,8 +2,8 @@
 Contributors: itsjsutxan, embold-tyler
 Tags: admin, management
 Requires at least: 6.0
-Tested up to: 6.3.1
-Stable tag: 0.15.0
+Tested up to: 6.8.1
+Stable tag: 0.16.0
 Requires PHP: 7.4
 
 == Description ==
@@ -11,6 +11,13 @@ Requires PHP: 7.4
 # A plugin that provides functionality to connect to WPHaven.
 
 == Changelog ==
+
+= 0.16.0 =
+* Improved Docker setup with database health checks and environment configuration to resolve startup warnings.
+* Added GitHub Action to automatically set plugin version from Git tag during release.
+* Added ElevatedUsers gatekeeper function from embold-wordpress-tweaks.
+* Refactored and restyled the admin bar environment indicator.
+* Bump 'Tested up to' version.
 
 = 0.15.0 =
 * Add Docker Compose configuration for local development environment
