@@ -1,16 +1,21 @@
 === WPHaven Connect ===
-Contributors: itsjsutxan, embold-tyler
+Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.8.1
-Stable tag: 0.16.0
+Stable tag: 0.16.1
 Requires PHP: 7.4
+
+Provides functionality to connect to the remote maintenance and management platform.
 
 == Description ==
 
-# A plugin that provides functionality to connect to WPHaven.
+Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.16.1 =
+* Add margins around environment indicator.
 
 = 0.16.0 =
 * Improved Docker setup with database health checks and environment configuration to resolve startup warnings.
