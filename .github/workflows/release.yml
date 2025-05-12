@@ -23,12 +23,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update version in plugin files from tag
+        if: startsWith(github.ref, 'refs/tags/') # Run only for tag pushes
+        run: |
+          # GITHUB_REF_NAME will be the tag name (e.g., "0.13.0")
+          # due to the on.push.tags filter and how GITHUB_REF_NAME works.
+          VERSION_NUMBER="${GITHUB_REF_NAME}"
+          
+          echo "Ensuring plugin files are versioned to: $VERSION_NUMBER"
+          
+          # Update Version in wphaven.php
+          if [ -f "wphaven.php" ]; then
+            sed -i -E "s/(Version: *)[0-9A-Za-z.-]+/\1$VERSION_NUMBER/" wphaven.php
+            echo "Updated Version in wphaven.php"
+          else
+            echo "wphaven.php not found, skipping update."
+          fi
+          
+          # Update Stable tag in readme.txt
+          if [ -f "readme.txt" ]; then
+            sed -i -E "s/(Stable tag: *)[0-9A-Za-z.-]+/\1$VERSION_NUMBER/" readme.txt
+            echo "Updated Stable tag in readme.txt"
+          else
+            echo "readme.txt not found, skipping update."
+          fi
+
       - name: Install dist-archive command
         run: wp package install wp-cli/dist-archive-command:@stable
 
       - name: Build plugin
         run: |
-          composer install --no-dev
+          composer install --no-dev --prefer-dist --optimize-autoloader
 
       - name: Build distribution archive
         run: wp dist-archive . dist --create-target-dir
