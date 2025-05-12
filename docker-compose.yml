@@ -3,41 +3,38 @@ services:
     image: wordpress:latest
     ports:
       - "8080:80"
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_NAME: embold
-      WORDPRESS_DB_USER: embold
-      WORDPRESS_DB_PASSWORD: embold
-      WORDPRESS_DEBUG: 1
-      WP_ENVIRONMENT_TYPE: development
+    env_file:
+      - docker.env
     volumes:
       - ./:/var/www/html/wp-content/plugins/wphaven-connect
       - wordpress:/var/www/html
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   cli:
     image: wordpress:cli
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_NAME: embold
-      WORDPRESS_DB_USER: embold
-      WORDPRESS_DB_PASSWORD: embold
+    env_file:
+      - docker.env
     volumes:
       - ./:/var/www/html/wp-content/plugins/wphaven-connect
       - wordpress:/var/www/html
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: mariadb:latest
-    environment:
-      MARIADB_RANDOM_ROOT_PASSWORD: 1
-      MYSQL_DATABASE: embold
-      MYSQL_USER: embold
-      MYSQL_PASSWORD: embold
+    env_file:
+      - docker.env
     volumes:
       - db:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   wordpress:
