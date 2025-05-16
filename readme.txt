@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.8.1
-Stable tag: 0.16.1
+Stable tag: 0.16.2
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.16.2 =
+* Re-release 0.16.1 to fix missing commit reference. *
 
 = 0.16.1 =
 * Add margins around environment indicator.
