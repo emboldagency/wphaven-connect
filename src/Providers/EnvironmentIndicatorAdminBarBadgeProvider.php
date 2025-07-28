@@ -2,6 +2,7 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\Utilities\Environment;
 use WPHavenConnect\Utilities\ElevatedUsers;
 
 // TODO: Build feature flag system to enable/disable this feature.
@@ -52,12 +53,10 @@ class EnvironmentIndicatorAdminBarBadgeProvider
         $labels = [
             'development' => 'Development',
             'staging' => 'Staging',
-            'maintenance' => 'Maintenance',
             'production' => 'Production',
-            'default' => 'Unknown',
         ];
 
-        $key = $this->determine_environment();
+        $key = Environment::get_environment();
         $menu_id = 'wphaven-environment-indicator-badge';
 
         return [
@@ -154,7 +153,7 @@ class EnvironmentIndicatorAdminBarBadgeProvider
             return;
         }
 
-        $env_key = $this->determine_environment();
+        $env_key = Environment::get_environment();
         // $env_vars = $this->get_environment_vars($env_key);
 
         // Inject current environment colors directly into the page
@@ -171,48 +170,6 @@ class EnvironmentIndicatorAdminBarBadgeProvider
         if (file_exists($css_file)) {
             echo '<style>' . file_get_contents($css_file) . '</style>';
         }
-    }
-
-    /**
-     * Figure out the current environment.
-     */
-    private function determine_environment(): string
-    {
-        $host = trim(strtolower($_SERVER['SERVER_NAME'])) ?? '';
-
-        if (defined('WP_ENVIRONMENT_TYPE')) {
-            return WP_ENVIRONMENT_TYPE;
-        }
-
-        if (defined('WP_ENV')) {
-            return WP_ENV;
-        }
-
-        if (!empty($_SERVER['SERVER_NAME'])) {
-            $this->calculated = true;
-
-            if (
-                strpos($host, '.local') !== false ||
-                strpos($host, '.embold.dev') !== false
-            ) {
-                return 'development';
-            }
-
-            if (
-                strpos($host, '.embold.net') !== false ||
-                strpos($host, 'staging.') !== false
-            ) {
-                return 'staging';
-            }
-
-            if (strpos($host, '.wphaven.dev') !== false) {
-                return 'maintenance';
-            }
-
-            return 'production';
-        }
-
-        return 'default';
     }
 
     // TODO: Implement this method to return environments details from WP Haven.
