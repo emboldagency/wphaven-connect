@@ -15,9 +15,6 @@ class CustomAdminLoginProvider
 
     public function register()
     {
-        // Debug: Log that the provider is being registered
-        error_log('[WPH Custom Login] CustomAdminLoginProvider->register() called');
-        
         // Call init_security immediately, then also hook it to ensure it runs
         $this->init_security();
         
@@ -27,19 +24,14 @@ class CustomAdminLoginProvider
 
     public function init_security()
     {
-        error_log('[WPH Custom Login] init_security() called');
         
         if (!defined('WPH_ADMIN_LOGIN_SLUG') || empty(WPH_ADMIN_LOGIN_SLUG)) {
-            error_log('[WPH Custom Login] WPH_ADMIN_LOGIN_SLUG not defined or empty');
             return;
         }
 
         $this->custom_login_slug = trim(WPH_ADMIN_LOGIN_SLUG, '/');
-        error_log('[WPH Custom Login] Custom login slug set to: ' . $this->custom_login_slug);
         
-        // Log the current request URI for debugging
         $request_uri = $_SERVER['REQUEST_URI'] ?? 'N/A';
-        error_log('[WPH Custom Login] Current REQUEST_URI: ' . $request_uri);
         
         // Early admin bar disabling for wp-admin requests
         if (preg_match('#^/wp-admin(/|$|\?)#', $request_uri)) {
@@ -74,7 +66,6 @@ class CustomAdminLoginProvider
         add_filter('site_url', [$this, 'filter_site_url'], 10, 4);
         add_filter('wp_redirect', [$this, 'filter_wp_redirect'], 10, 2);
         
-        error_log('[WPH Custom Login] All hooks registered');
     }
 
     /**
@@ -97,13 +88,10 @@ class CustomAdminLoginProvider
         $path = $parsed_url['path'] ?? '';
         $path = untrailingslashit($path);
 
-        // Log for debugging
-        error_log('[WPH Custom Login] Intercepting: ' . $request_uri . ' | Path: ' . $path);
 
         // Check if accessing wp-login.php - redirect to /404
         if ($this->is_wp_login_request($path)) {
             if (!$this->is_login_allowed()) {
-                error_log('[WPH Custom Login] Blocking wp-login.php access - redirecting to /404');
                 $this->request_intercepted = true;
                 wp_redirect(home_url('/404/'), 302);
                 exit;
@@ -113,7 +101,6 @@ class CustomAdminLoginProvider
         // Check if accessing wp-admin - redirect to /404 if not logged in
         if (preg_match('#^/wp-admin(/|$|\?)#', $path)) {
             if (!is_user_logged_in()) {
-                error_log('[WPH Custom Login] Blocking wp-admin access - redirecting to /404');
                 $this->request_intercepted = true;
                 wp_redirect(home_url('/404/'), 302);
                 exit;
@@ -122,7 +109,6 @@ class CustomAdminLoginProvider
 
         // Check if accessing custom login slug - serve wp-login.php
         if ($this->is_custom_login_request($path)) {
-            error_log('[WPH Custom Login] Custom login slug accessed - deferring to wp_loaded');
             // Don't serve immediately during plugins_loaded, defer to wp_loaded
             $this->serve_custom_login = true;
             return;
@@ -130,7 +116,6 @@ class CustomAdminLoginProvider
 
         // Block wp-register.php access - redirect to /404
         if ($this->is_wp_register_request($path)) {
-            error_log('[WPH Custom Login] Blocking wp-register.php access - redirecting to /404');
             $this->request_intercepted = true;
             wp_redirect(home_url('/404/'), 302);
             exit;
@@ -148,7 +133,6 @@ class CustomAdminLoginProvider
 
         // If we need to serve the custom login page, do it now
         if ($this->serve_custom_login) {
-            error_log('[WPH Custom Login] wp_loaded - serving custom login page');
             $this->serve_login_page();
             exit;
         }
@@ -380,7 +364,6 @@ class CustomAdminLoginProvider
         // Set REQUEST_URI to wp-login.php with preserved query string
         $_SERVER['REQUEST_URI'] = '/wp-login.php' . ($query_string ? '?' . $query_string : '');
         
-        error_log('[WPH Custom Login] Serving login page with REQUEST_URI: ' . $_SERVER['REQUEST_URI']);
         
         // Include and execute wp-login.php
         require_once ABSPATH . 'wp-login.php';
@@ -396,7 +379,6 @@ class CustomAdminLoginProvider
         $current_request = $_SERVER['REQUEST_URI'] ?? '';
         if (preg_match('#^/wp-admin(/|$)#', $current_request)) {
             // This is direct wp-admin access, disable all login URL filtering
-            error_log('[WPH Custom Login] filter_login_url: Direct wp-admin access, temporarily removing login_url filter');
             
             // Remove this filter temporarily to prevent any redirects
             remove_filter('login_url', [$this, 'filter_login_url'], 10);
@@ -417,12 +399,10 @@ class CustomAdminLoginProvider
                 $url = add_query_arg('reauth', '1', $url);
             }
             
-            error_log('[WPH Custom Login] filter_login_url: Admin login detected from other context, redirecting to custom slug');
             return $url;
         }
         
         // For regular user login, return the original URL unchanged
-        error_log('[WPH Custom Login] filter_login_url: Regular login, keeping original URL');
         return $login_url;
     }
 
@@ -446,7 +426,6 @@ class CustomAdminLoginProvider
                     $new_url .= '?' . $query_string;
                 }
                 
-                error_log('[WPH Custom Login] filter_site_url: Custom login context, rewriting: ' . $url . ' → ' . $new_url);
                 return $new_url;
             }
             
@@ -481,11 +460,9 @@ class CustomAdminLoginProvider
                     $new_url .= '?' . $query_string;
                 }
                 
-                error_log('[WPH Custom Login] filter_site_url: Admin-related, redirecting: ' . $url . ' → ' . $new_url);
                 return $new_url;
             }
             
-            error_log('[WPH Custom Login] filter_site_url: Regular login, keeping original: ' . $url);
         }
         
         return $url;
@@ -528,11 +505,9 @@ class CustomAdminLoginProvider
                     $new_url .= '?' . $query_string;
                 }
                 
-                error_log('[WPH Custom Login] filter_wp_redirect: Admin-related, redirecting: ' . $location . ' → ' . $new_url);
                 return $new_url;
             }
             
-            error_log('[WPH Custom Login] filter_wp_redirect: Regular login, keeping original: ' . $location);
         }
         
         return $location;

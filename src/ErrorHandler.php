@@ -22,12 +22,10 @@ class ErrorHandler
         // Defaults to true in development environment
         $suppress_textdomain = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
 
-        error_log('[Error Handler] Initializing with textdomain suppression: ' . ($suppress_textdomain ? 'enabled' : 'disabled'));
 
         if ($suppress_textdomain) {
             add_filter('doing_it_wrong_trigger_error', function ($status, $function_name) {
                 if ('_load_textdomain_just_in_time' === $function_name) {
-                    error_log('[Error Handler] Suppressing textdomain notice for function: ' . $function_name);
                     return false;
                 }
                 return $status;
@@ -36,12 +34,10 @@ class ErrorHandler
 
         // Also hook into doing_it_wrong_run to log all "doing it wrong" calls for debugging
         add_action('doing_it_wrong_run', function ($function, $message, $version) {
-            error_log('[Error Handler] doing_it_wrong called - Function: ' . $function . ', Message: ' . substr($message, 0, 100) . '...');
 
             // If this is a textdomain-related notice and we should suppress it, note that
             if (strpos($message, '_load_textdomain_just_in_time') !== false || strpos($message, 'textdomain') !== false) {
                 $should_suppress = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
-                error_log('[Error Handler] Textdomain notice detected. Should suppress: ' . ($should_suppress ? 'yes' : 'no'));
             }
         }, 10, 3);
 
