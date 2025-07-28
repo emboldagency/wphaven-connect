@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.8.1
-Stable tag: 0.16.2
+Stable tag: 0.17.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,14 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.17.0 =
+* Add Custom Admin Login Provider to hide default WordPress admin/login URLs via WPH_ADMIN_LOGIN_SLUG constant
+* Add configurable textdomain notice suppression via WPH_SUPPRESS_TEXTDOMAIN_NOTICES constant (defaults to true in development)
+* Add Environment utility class for centralized environment detection across providers
+* Update environment indicator admin bar badge with new WP Haven brand colors and improved styling
+* Fix custom admin login redirect loops and unauthorized access handling
+* Add cross-platform development support with comprehensive Copilot instructions for Windows, macOS, and Linux
 
 = 0.16.2 =
 * Re-release 0.16.1 to fix missing commit reference. *
