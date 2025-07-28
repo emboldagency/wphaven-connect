@@ -1,100 +1,96 @@
 :root {
-    --wphaven-environment-development-bg: #fff5f2;
-    --wphaven-environment-development-bg-hover: #FFE5E0;
-    --wphaven-environment-development-text: #FF3C38;
-    --wphaven-environment-staging-bg: #FEF9C3;
-    --wphaven-environment-staging-bg-hover: #FCEEA0;
-    --wphaven-environment-staging-text: #CA8A04;
-    --wphaven-environment-maintenance-bg: #E0F2FE;
-    --wphaven-environment-maintenance-bg-hover: #C7E5FA;
-    --wphaven-environment-maintenance-text: #5A90BF;
-    --wphaven-environment-production-bg: #DCFCE7;
-    --wphaven-environment-production-bg-hover: #BFF3D0;
-    --wphaven-environment-production-text: #16A34A;
-    --wphaven-environment-default-bg: #DBD5DC;
-    --wphaven-environment-default-bg-hover: #CAC2CC;
-    --wphaven-environment-default-text: #484349;
+  --wphaven-environment-development-bg: #fff5f2;
+  --wphaven-environment-development-bg-hover: #ffe5e0;
+  --wphaven-environment-development-text: #ff3c38;
+  --wphaven-environment-staging-bg: #f3e8ff;
+  --wphaven-environment-staging-bg-hover: #e3d6fa;
+  --wphaven-environment-staging-text: #6b67c8;
+  --wphaven-environment-production-bg: #dcfce7;
+  --wphaven-environment-production-bg-hover: #bff3d0;
+  --wphaven-environment-production-text: #16a34a;
+  --wphaven-environment-default-bg: #dbd5dc;
+  --wphaven-environment-default-bg-hover: #cac2cc;
+  --wphaven-environment-default-text: #484349;
 }
 
 /* Desktop badge styles */
 #wpadminbar .quicklinks #wp-admin-bar-wphaven-environment-indicator-badge {
-    padding: 7px 0;
+  padding: 7px 0;
 
-    /* Base badge styles */
-    &>a.ab-item {
-        background-color: var(--current-environment-bg);
-        color: var(--current-environment-text);
-        border-radius: 2px;
-        display: flex;
-        height: 18px;
-        padding: 0px 6px;
-        align-items: center;
-        gap: 8px;
-        font-size: 12px;
-        font-style: normal;
-        font-weight: 500;
-        line-height: 16px;
-        margin-left: 2px;
-        margin-right: 2px;
+  /* Base badge styles */
+  & > a.ab-item {
+    background-color: var(--current-environment-bg);
+    color: var(--current-environment-text);
+    border-radius: 2px;
+    display: flex;
+    height: 18px;
+    padding: 0px 6px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 16px;
+    margin-left: 2px;
+    margin-right: 2px;
 
-        &:hover,
-        &:focus {
-            background-color: var(--current-environment-bg-hover);
-        }
-
-        &:focus {
-            outline: var(--wp-admin-border-width-focus) solid var(--wp-admin-theme-color-darker-20);
-        }
+    &:hover,
+    &:focus {
+      background-color: var(--current-environment-bg-hover);
     }
 
-    /* Make sure top of submenu is aligned with bottom of admin bar */
-    &>.ab-sub-wrapper {
-        top: 100%;
+    &:focus {
+      outline: var(--wp-admin-border-width-focus) solid
+        var(--wp-admin-theme-color-darker-20);
     }
+  }
+
+  /* Make sure top of submenu is aligned with bottom of admin bar */
+  & > .ab-sub-wrapper {
+    top: 100%;
+  }
 }
 
 #wp-admin-bar-wphaven-environment-indicator-badge-mobile {
-    display: none;
+  display: none;
 }
 
 /* Mobile styles */
 @media (max-width: 782px) {
+  /* Hide desktop badge on mobile */
+  #wpadminbar #wp-admin-bar-wphaven-environment-indicator-badge {
+    display: none;
+  }
 
-    /* Hide desktop badge on mobile */
-    #wpadminbar #wp-admin-bar-wphaven-environment-indicator-badge {
-        display: none;
+  #wpadminbar {
+    /* Notification dot */
+    & #wp-admin-bar-site-name > .ab-item::after {
+      content: "";
+      display: block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      position: absolute;
+      background-color: var(--current-environment-text);
+      border: 1px solid var(--current-environment-bg);
     }
 
-    #wpadminbar {
-
-        /* Notification dot */
-        & #wp-admin-bar-site-name>.ab-item::after {
-            content: "";
-            display: block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            position: absolute;
-            background-color: var(--current-environment-text);
-            border: 1px solid var(--current-environment-bg);
-        }
-
-        /* Position for site name (frontend) */
-        & #wp-admin-bar-site-name>.ab-item::after {
-            top: 6px;
-            right: 0px;
-        }
-
-        /* Position for menu toggle (backend) */
-        & #wp-admin-bar-menu-toggle>.ab-item::after {
-            top: 5px;
-            right: 2px;
-        }
-
-        /* Submenu item */
-        & #wp-admin-bar-wphaven-environment-indicator-badge-mobile>.ab-item {
-            background-color: var(--current-environment-bg);
-            color: var(--current-environment-text);
-        }
+    /* Position for site name (frontend) */
+    & #wp-admin-bar-site-name > .ab-item::after {
+      top: 6px;
+      right: 0px;
     }
+
+    /* Position for menu toggle (backend) */
+    & #wp-admin-bar-menu-toggle > .ab-item::after {
+      top: 5px;
+      right: 2px;
+    }
+
+    /* Submenu item */
+    & #wp-admin-bar-wphaven-environment-indicator-badge-mobile > .ab-item {
+      background-color: var(--current-environment-bg);
+      color: var(--current-environment-text);
+    }
+  }
 }
