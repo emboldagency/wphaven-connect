@@ -13,15 +13,23 @@ services:
         condition: service_healthy
 
   cli:
-    image: wordpress:cli
+    image: emboldcreative/wp-cli:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.cli
     env_file:
       - docker.env
     volumes:
       - ./:/var/www/html/wp-content/plugins/wphaven-connect
       - wordpress:/var/www/html
+      - wp_cli_cache:/home/www-data/.wp-cli
     depends_on:
       db:
         condition: service_healthy
+    profiles:
+      - cli
+    # Keep container running for easier package management
+    command: tail -f /dev/null
 
   db:
     image: mariadb:latest
@@ -30,7 +38,7 @@ services:
     volumes:
       - db:/var/lib/mysql
     healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       start_period: 10s
       interval: 10s
       timeout: 5s
@@ -39,3 +47,4 @@ services:
 volumes:
   wordpress:
   db:
+  wp_cli_cache:

@@ -1,1 +1,6 @@
-dist
+dist/*
+!dist/.gitkeep
+!dist/archives/
+!dist/extracted/
+dist/archives/*
+dist/extracted/*

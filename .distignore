@@ -3,6 +3,7 @@
 .distignore
 .DS_Store
 .editorconfig
+.env
 .git
 .github
 .gitignore
@@ -14,6 +15,9 @@ bin
 composer.json
 composer.lock
 dist
+docker-compose.yml
+docker.env
+Dockerfile.cli
 Gruntfile.js
 node_modules
 package.json
@@ -22,6 +26,7 @@ phpcs.ruleset.xml
 phpstan.neon.dist
 phpunit.xml
 phpunit.xml.dist
+scripts
 README.md
 tests
 Thumbs.db

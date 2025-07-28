@@ -1,4 +1,5 @@
 {
+    "name": "wphaven/wphaven-connect",
     "autoload": {
         "psr-4": {
             "WPHavenConnect\\": "src/"
