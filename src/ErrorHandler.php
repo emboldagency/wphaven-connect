@@ -2,16 +2,56 @@
 
 namespace WPHavenConnect;
 
-class ErrorHandler {
+use WPHavenConnect\Utilities\Environment;
 
-    public function __construct() {
-        // Set global error and exception handlers
+class ErrorHandler
+{
+
+    private $suppress_textdomain_notice = false;
+
+
+    public function __construct()
+    {
+        $this->register_error_handlers();
+    }
+
+    private function register_error_handlers()
+    {
+        // Suppress _load_textdomain_just_in_time doing_it_wrong notices if enabled
+        // Can be controlled via WPH_SUPPRESS_TEXTDOMAIN_NOTICES constant in wp-config.php
+        // Defaults to true in development environment
+        $suppress_textdomain = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
+
+        error_log('[Error Handler] Initializing with textdomain suppression: ' . ($suppress_textdomain ? 'enabled' : 'disabled'));
+
+        if ($suppress_textdomain) {
+            add_filter('doing_it_wrong_trigger_error', function ($status, $function_name) {
+                if ('_load_textdomain_just_in_time' === $function_name) {
+                    error_log('[Error Handler] Suppressing textdomain notice for function: ' . $function_name);
+                    return false;
+                }
+                return $status;
+            }, 10, 2);
+        }
+
+        // Also hook into doing_it_wrong_run to log all "doing it wrong" calls for debugging
+        add_action('doing_it_wrong_run', function ($function, $message, $version) {
+            error_log('[Error Handler] doing_it_wrong called - Function: ' . $function . ', Message: ' . substr($message, 0, 100) . '...');
+
+            // If this is a textdomain-related notice and we should suppress it, note that
+            if (strpos($message, '_load_textdomain_just_in_time') !== false || strpos($message, 'textdomain') !== false) {
+                $should_suppress = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
+                error_log('[Error Handler] Textdomain notice detected. Should suppress: ' . ($should_suppress ? 'yes' : 'no'));
+            }
+        }, 10, 3);
+
         set_error_handler([$this, 'handle_error']);
         set_exception_handler([$this, 'handle_exception']);
         register_shutdown_function([$this, 'handle_shutdown']);
     }
 
-    public function handle_error($errno, $errstr, $errfile, $errline) {
+    public function handle_error($errno, $errstr, $errfile, $errline)
+    {
         $error = compact('errno', 'errstr', 'errfile', 'errline');
 
         $this->send_slack_notification($error);
@@ -20,7 +60,8 @@ class ErrorHandler {
         return !in_array($errno, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR]);
     }
 
-    public function handle_exception($exception) {
+    public function handle_exception($exception)
+    {
         $error = [
             'errno' => E_ERROR,
             'errstr' => $exception->getMessage(),
@@ -33,7 +74,8 @@ class ErrorHandler {
         throw $exception;
     }
 
-    public function handle_shutdown() {
+    public function handle_shutdown()
+    {
         $error = error_get_last();
 
         // Only consider these "fatal" like WordPress Core does
@@ -51,7 +93,8 @@ class ErrorHandler {
         }
     }
 
-    private function should_notify_slack(): bool {
+    private function should_notify_slack(): bool
+    {
         if (function_exists('get_transient') && function_exists('set_transient')) {
             $key = 'wphaven_slack_error_sent';
 
@@ -66,7 +109,8 @@ class ErrorHandler {
         return true;
     }
 
-    private function send_slack_notification($error) {
+    private function send_slack_notification($error)
+    {
         $error_type = $this->get_error_type($error['type'] ?? $error['errno']);
 
         // Only send the Slack notification if conditions are met
@@ -82,7 +126,6 @@ class ErrorHandler {
             $message = [
                 'domain' => $_SERVER['HTTP_HOST'] ?? 'Unknown',
                 'url' => isset($_SERVER['REQUEST_URI']) ? home_url($_SERVER['REQUEST_URI']) : home_url(),
-                'url' => home_url($_SERVER['REQUEST_URI']),
                 'error' => $error['message'] ?? $error['errstr'],
                 'file' => $error['file'] ?? $error['errfile'],
                 'line' => $error['line'] ?? $error['errline'],
@@ -93,10 +136,10 @@ class ErrorHandler {
                 'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'Unknown',
                 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
                 'wp_memory_usage' => round(memory_get_usage() / 1024 / 1024, 2) . 'MB / ' .
-   (defined('WP_MEMORY_LIMIT') ? round(wp_convert_hr_to_bytes(WP_MEMORY_LIMIT) / 1024 / 1024, 2) . 'MB' : 'Unknown'),
+                    (defined('WP_MEMORY_LIMIT') ? round(wp_convert_hr_to_bytes(WP_MEMORY_LIMIT) / 1024 / 1024, 2) . 'MB' : 'Unknown'),
                 'execution_time' => isset($_SERVER["REQUEST_TIME_FLOAT"])
-    ? round(microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"], 4) . 's'
-    : 'Unknown',
+                    ? round(microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"], 4) . 's'
+                    : 'Unknown',
             ];
 
             if ($this->should_notify_slack()) {
@@ -109,11 +152,27 @@ class ErrorHandler {
         }
     }
 
-    private function get_bot_likelihood($user_agent) {
+    private function get_bot_likelihood($user_agent)
+    {
         $known_bots = [
-            'googlebot', 'bingbot', 'yandexbot', 'duckduckbot', 'baiduspider',
-            'semrushbot', 'ahrefsbot', 'facebookexternalhit', 'twitterbot',
-            'slackbot', 'discordbot', 'linkedinbot', 'gptbot', 'chatgpt', 'claude', 'crawler', 'spider', 'bot'
+            'googlebot',
+            'bingbot',
+            'yandexbot',
+            'duckduckbot',
+            'baiduspider',
+            'semrushbot',
+            'ahrefsbot',
+            'facebookexternalhit',
+            'twitterbot',
+            'slackbot',
+            'discordbot',
+            'linkedinbot',
+            'gptbot',
+            'chatgpt',
+            'claude',
+            'crawler',
+            'spider',
+            'bot'
         ];
 
         $likely_bots = [];
@@ -127,23 +186,24 @@ class ErrorHandler {
         return 'Likely Human';
     }
 
-    private function get_error_type($errno) {
+    private function get_error_type($errno)
+    {
         $types = [
-            E_ERROR             => 'Fatal Error',
-            E_WARNING           => 'Warning',
-            E_PARSE             => 'Parse Error',
-            E_NOTICE            => 'Notice',
-            E_CORE_ERROR        => 'Core Error',
-            E_CORE_WARNING      => 'Core Warning',
-            E_COMPILE_ERROR     => 'Compile Error',
-            E_COMPILE_WARNING   => 'Compile Warning',
-            E_USER_ERROR        => 'User Error',
-            E_USER_WARNING      => 'User Warning',
-            E_USER_NOTICE       => 'User Notice',
-            E_STRICT            => 'Strict Notice',
+            E_ERROR => 'Fatal Error',
+            E_WARNING => 'Warning',
+            E_PARSE => 'Parse Error',
+            E_NOTICE => 'Notice',
+            E_CORE_ERROR => 'Core Error',
+            E_CORE_WARNING => 'Core Warning',
+            E_COMPILE_ERROR => 'Compile Error',
+            E_COMPILE_WARNING => 'Compile Warning',
+            E_USER_ERROR => 'User Error',
+            E_USER_WARNING => 'User Warning',
+            E_USER_NOTICE => 'User Notice',
+            E_STRICT => 'Strict Notice',
             E_RECOVERABLE_ERROR => 'Recoverable Error',
-            E_DEPRECATED        => 'Deprecated',
-            E_USER_DEPRECATED   => 'User Deprecated',
+            E_DEPRECATED => 'Deprecated',
+            E_USER_DEPRECATED => 'User Deprecated',
         ];
 
         return $types[$errno] ?? 'Unknown Err Type';

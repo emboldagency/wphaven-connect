@@ -9,10 +9,13 @@ class ServiceProvider
 {
 
     private $providers = [
-        // Register the ErrorHandlerProvider first to ensure it initializes early
-        // ErrorHandlerProvider::class, // Temporarily commented out for debugging
+            // Register the ErrorHandlerProvider first to ensure it initializes early
+        ErrorHandlerProvider::class,
 
-        // Add other service providers here
+            // TextdomainNoticeSuppressionProvider is registered early in main plugin file
+            // so we don't include it here to avoid duplicate registration
+
+            // Add other service providers here
         AssetUrlServiceProvider::class,
         ClientAlertsProvider::class,
         CommandLineServiceProvider::class,
@@ -35,8 +38,6 @@ class ServiceProvider
     {
         // Temporary fix: Manually require the CustomAdminLoginProvider class
         require_once __DIR__ . '/CustomAdminLoginProvider.php';
-        
-        // ErrorHandlerProvider is now a provider, so no need to instantiate ErrorHandler here
 
         // Register other service providers
         foreach ($this->providers as $provider) {
