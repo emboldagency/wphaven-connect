@@ -5,28 +5,38 @@ namespace WPHavenConnect\Providers;
 use WP_Error;
 use WPHavenConnect\ErrorHandler;
 
-class ServiceProvider {
+class ServiceProvider
+{
 
     private $providers = [
+        // Register the ErrorHandlerProvider first to ensure it initializes early
+        // ErrorHandlerProvider::class, // Temporarily commented out for debugging
+
+        // Add other service providers here
         AssetUrlServiceProvider::class,
-        CookieServiceProvider::class,
-        WordfenceServiceProvider::class,
-        CommandLineServiceProvider::class,
-        ServerInfoServiceProvider::class,
-        PhpInfoServiceProvider::class,
         ClientAlertsProvider::class,
-        WooCommerceServiceProvider::class,
-        EnvironmentIndicatorAdminBarBadgeProvider::class,
+        CommandLineServiceProvider::class,
+        CookieServiceProvider::class,
+        CustomAdminLoginProvider::class,
         DisableMailServiceProvider::class,
+        EnvironmentIndicatorAdminBarBadgeProvider::class,
+        PhpInfoServiceProvider::class,
+        ServerInfoServiceProvider::class,
+        WooCommerceServiceProvider::class,
+        WordfenceServiceProvider::class,
     ];
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->register();
     }
 
-    public function register() {
-        // Initialize the ErrorHandler first to catch any errors
-        new ErrorHandler();
+    public function register()
+    {
+        // Temporary fix: Manually require the CustomAdminLoginProvider class
+        require_once __DIR__ . '/CustomAdminLoginProvider.php';
+        
+        // ErrorHandlerProvider is now a provider, so no need to instantiate ErrorHandler here
 
         // Register other service providers
         foreach ($this->providers as $provider) {
@@ -35,7 +45,8 @@ class ServiceProvider {
     }
 
     // Centralized permissions check method
-    public static function apiPermissionsCheck() {
+    public static function apiPermissionsCheck()
+    {
         // Whitelisted IP addresses and domains
         $whitelisted_ips = [
             '107.10.14.63', // xan
