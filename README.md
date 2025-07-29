@@ -1,8 +1,20 @@
 # WPHaven Connect
 
+[![Build and Deploy](https://embold.net/api/github/badge/workflow-status.php?repo=wphaven-connect&workflow=release.yml)](https://github.com/emboldagency/wphaven-connect/actions/workflows/release.yml) <!--
+-->![Semantic Versioning](https://embold.net/api/github/badge/semver.php?repo=wphaven-connect)
+
 > **Note**: This is the development documentation. WordPress plugins use `readme.txt` for their official plugin information and changelog, not this README.md file.
 
 WordPress plugin that provides functionality to connect to the remote maintenance and management platform.
+
+## Environment Constants
+
+The plugin supports several environment-specific constants:
+
+- `DISABLE_MAIL`: Control email functionality (true to disable)
+- `ELEVATED_EMAILS`: Array of additional admin emails
+- `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug (hides default wp-admin/wp-login.php)
+- `WPH_SUPPRESS_TEXTDOMAIN_NOTICES`: Suppress textdomain loading notices (defaults to true in development)
 
 ## Development Setup
 
@@ -123,18 +135,6 @@ The `.distignore` file excludes development files such as:
 - Development scripts and tools
 
 The resulting archive contains only the files needed for production WordPress installation.
-
-### Archive Size Comparison
-
-- **Full directory**: ~40 MB (includes all development files)
-- **Distribution archive**: ~99 KB (production files only)
-
-## Environment Constants
-
-The plugin supports several environment-specific constants:
-
-- `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug (hides default wp-admin/wp-login.php)
-- `WPH_SUPPRESS_TEXTDOMAIN_NOTICES`: Suppress textdomain loading notices (defaults to true in development)
 
 ## Plugin Structure
 

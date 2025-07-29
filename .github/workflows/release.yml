@@ -1,4 +1,4 @@
-name: Release
+name: WordPress Plugin Release
 
 on:
   push:
