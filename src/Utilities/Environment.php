@@ -6,7 +6,7 @@ class Environment
 {
     /**
      * The list of final, valid environments this class will return.
-     * 
+     *
      * @var array
      */
     private const ALLOWED_ENVS = ['development', 'staging', 'production'];
@@ -40,11 +40,16 @@ class Environment
         }
 
         // 3. Normalize common aliases
-        $env = match ($env) {
-            'local' => 'development',
-            'maintenance' => 'staging',
-            default => $env,
-        };
+        switch ($env) {
+            case 'local':
+                $env = 'development';
+                break;
+            case 'maintenance':
+                $env = 'staging';
+                break;
+            default:
+                break;
+        }
 
         // 4. Fallback to host-based detection ONLY if the environment is not a valid final value.
         // This allows overriding a 'production' default from constants with more specific host rules.

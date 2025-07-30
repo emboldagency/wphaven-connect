@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.8.1
-Stable tag: 0.17.0
+Stable tag: 0.17.1
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.17.1 =
+* Fix errors with PHP 7.4, replaced match statement with switch
 
 = 0.17.0 =
 * Add Custom Admin Login Provider to hide default WordPress admin/login URLs via WPH_ADMIN_LOGIN_SLUG constant
