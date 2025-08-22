@@ -1,0 +1,49 @@
+#wphaven-support-widget {
+    padding: 10px;
+}
+
+#wphaven-support-widget .form-table td {
+    padding: 8px 0;
+}
+
+#wphaven-support-widget .form-table td:first-child {
+    width: 100px;
+    padding-right: 15px;
+    font-weight: 600;
+}
+
+#wphaven-support-widget input[type="text"],
+#wphaven-support-widget input[type="email"],
+#wphaven-support-widget textarea {
+    width: 100%;
+    max-width: 400px;
+}
+
+#wphaven-support-widget textarea {
+    resize: vertical;
+}
+
+#wphaven-support-widget .submit {
+    margin-top: 15px;
+    margin-bottom: 0;
+}
+
+#wphaven-support-messages {
+    margin-bottom: 15px;
+}
+
+#wphaven-success-message {
+    text-align: center;
+    padding: 20px;
+}
+
+#wphaven-success-message .notice {
+    margin: 0;
+    padding: 15px;
+}
+
+/* Loading state */
+#wphaven-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
