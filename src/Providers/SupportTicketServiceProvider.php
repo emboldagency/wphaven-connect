@@ -161,9 +161,6 @@ class SupportTicketServiceProvider extends ServiceProvider
             'timeout' => 30
         ]);
 
-        var_dump($response); // Debugging line, can be removed in production
-        die();
-
         if (is_wp_error($response)) {
             wp_send_json_error(['message' => 'Failed to submit ticket. Please try again.']);
             return;
@@ -172,10 +169,19 @@ class SupportTicketServiceProvider extends ServiceProvider
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
 
-        if (wp_remote_retrieve_response_code($response) === 200 && isset($data['success'])) {
+        if (wp_remote_retrieve_response_code($response) === 200 && isset($data['success']) && $data['success']) {
             wp_send_json_success(['message' => 'Ticket created successfully']);
         } else {
-            $error_message = isset($data['message']) ? $data['message'] : 'Failed to create ticket';
+            // Handle validation errors
+            if (isset($data['errors'])) {
+                $error_messages = [];
+                foreach ($data['errors'] as $field => $messages) {
+                    $error_messages[] = implode(', ', $messages);
+                }
+                $error_message = implode('. ', $error_messages);
+            } else {
+                $error_message = isset($data['message']) ? $data['message'] : 'Failed to create ticket';
+            }
             wp_send_json_error(['message' => $error_message]);
         }
     }
