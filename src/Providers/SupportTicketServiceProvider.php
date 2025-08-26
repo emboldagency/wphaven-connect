@@ -44,9 +44,11 @@ class SupportTicketServiceProvider extends ServiceProvider
         }
 
         if ($support_status && isset($support_status['enabled']) && $support_status['enabled']) {
+            $widget_title = 'Contact ' . ($support_status['name_to_use'] ?? 'WP Haven') . ' Maintenance Support';
+            
             wp_add_dashboard_widget(
                 'wphaven_support_ticket',
-                'Contact Site Maintenance Support',
+                $widget_title,
                 [$this, 'renderSupportWidget']
             );
         }

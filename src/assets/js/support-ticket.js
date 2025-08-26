@@ -27,9 +27,14 @@ jQuery(document).ready(function($) {
         // Submit via AJAX
         $.post(wphavenSupport.ajax_url, formData, function(response) {
             if (response.success) {
-                // Hide form and show success message
-                $form.hide();
+                // Clear form fields and show success message
+                $form[0].reset();
                 $successMessage.show();
+                
+                // Hide success message after 5 seconds
+                setTimeout(function() {
+                    $successMessage.fadeOut();
+                }, 5000);
             } else {
                 // Show error message
                 const errorMessage = response.data?.message || 'An error occurred. Please try again.';
