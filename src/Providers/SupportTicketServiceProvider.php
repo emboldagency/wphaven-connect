@@ -36,7 +36,7 @@ class SupportTicketServiceProvider extends ServiceProvider
     public function addDashboardWidget()
     {
         // Check if support is enabled for this site (cached)
-        $support_status = get_transient('wphaven_support_status_test');
+        $support_status = get_transient('wphaven_support_status');
 
         if ($support_status === false) {
             $support_status = $this->fetchSupportStatus();
@@ -45,7 +45,7 @@ class SupportTicketServiceProvider extends ServiceProvider
 
         if ($support_status && isset($support_status['enabled']) && $support_status['enabled']) {
             $widget_title = 'Contact ' . ($support_status['name_to_use'] ?? 'WP Haven') . ' Maintenance Support';
-            
+
             wp_add_dashboard_widget(
                 'wphaven_support_ticket',
                 $widget_title,
@@ -98,11 +98,13 @@ class SupportTicketServiceProvider extends ServiceProvider
                 <table class="form-table">
                     <tr>
                         <td><label for="wphaven-name">Name:</label></td>
-                        <td><input style="width: 100%;" type="text" id="wphaven-name" name="name" value="<?php echo esc_attr($current_user->display_name); ?>" required /></td>
+                        <td><input style="width: 100%;" type="text" id="wphaven-name" name="name"
+                                   value="<?php echo esc_attr($current_user->display_name); ?>" required /></td>
                     </tr>
                     <tr>
                         <td><label for="wphaven-email">Email:</label></td>
-                        <td><input style="width: 100%;" type="email" id="wphaven-email" name="email" value="<?php echo esc_attr($current_user->user_email); ?>" required /></td>
+                        <td><input style="width: 100%;" type="email" id="wphaven-email" name="email"
+                                   value="<?php echo esc_attr($current_user->user_email); ?>" required /></td>
                     </tr>
                     <tr>
                         <td><label for="wphaven-subject">Subject:</label></td>
@@ -110,7 +112,8 @@ class SupportTicketServiceProvider extends ServiceProvider
                     </tr>
                     <tr>
                         <td><label for="wphaven-description">Description:</label></td>
-                        <td><textarea style="width: 100%;" id="wphaven-description" name="description" rows="5" required></textarea></td>
+                        <td><textarea style="width: 100%;" id="wphaven-description" name="description" rows="5"
+                                      required></textarea></td>
                     </tr>
                 </table>
 
