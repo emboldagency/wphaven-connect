@@ -4,3 +4,4 @@ dist/*
 !dist/extracted/
 dist/archives/*
 dist/extracted/*
+.idea/

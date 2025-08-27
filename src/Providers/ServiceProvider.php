@@ -25,6 +25,7 @@ class ServiceProvider
         EnvironmentIndicatorAdminBarBadgeProvider::class,
         PhpInfoServiceProvider::class,
         ServerInfoServiceProvider::class,
+        SupportTicketServiceProvider::class,
         WooCommerceServiceProvider::class,
         WordfenceServiceProvider::class,
     ];
