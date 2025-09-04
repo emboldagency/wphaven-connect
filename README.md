@@ -3,7 +3,8 @@
 [![Build and Deploy](https://embold.net/api/github/badge/workflow-status.php?repo=wphaven-connect&workflow=release.yml)](https://github.com/emboldagency/wphaven-connect/actions/workflows/release.yml) <!--
 -->![Semantic Versioning](https://embold.net/api/github/badge/semver.php?repo=wphaven-connect)
 
-> **Note**: This is the development documentation. WordPress plugins use `readme.txt` for their official plugin information and changelog, not this README.md file.
+> **Note**: This is the development documentation. WordPress plugins use `readme.txt` for their official plugin
+> information and changelog, not this README.md file.
 
 WordPress plugin that provides functionality to connect to the remote maintenance and management platform.
 
@@ -15,6 +16,10 @@ The plugin supports several environment-specific constants:
 - `ELEVATED_EMAILS`: Array of additional admin emails
 - `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug (hides default wp-admin/wp-login.php)
 - `WPH_SUPPRESS_TEXTDOMAIN_NOTICES`: Suppress textdomain loading notices (defaults to true in development)
+
+Example usage in `wp-config.php`:
+
+`define('ELEVATED_EMAILS', ['worf@embold.com', 'spock@embold.com']);`
 
 ## Development Setup
 
@@ -90,20 +95,23 @@ To build the plugin for distribution (excluding development files):
        └── ... (all plugin files)
    ```
    └── extracted/
-       ├── wphaven.php
-       ├── src/
-       └── ... (all plugin files)
+   ├── wphaven.php
+   ├── src/
+   └── ... (all plugin files)
    ```
 
 **Note**: On Windows, you can use WSL to run the bash script.
 
 ### Creating Distribution Archives
 
-The project includes the `wp dist-archive` command for creating clean distribution archives that respect the `.distignore` file.
+The project includes the `wp dist-archive` command for creating clean distribution archives that respect the
+`.distignore` file.
 
 #### Setup (One-time)
 
-The `wp-cli/dist-archive-command` package is pre-installed in the persistent CLI container. The CLI container uses a custom Dockerfile (`Dockerfile.cli`) that extends the standard `wordpress:cli` image with zip utilities pre-installed for faster builds.
+The `wp-cli/dist-archive-command` package is pre-installed in the persistent CLI container. The CLI container uses a
+custom Dockerfile (`Dockerfile.cli`) that extends the standard `wordpress:cli` image with zip utilities pre-installed
+for faster builds.
 
 #### Creating an Archive
 
@@ -128,6 +136,7 @@ The zip format is used as it's the standard format for WordPress plugin installa
 ### What Gets Excluded
 
 The `.distignore` file excludes development files such as:
+
 - `.git/` directory and Git files
 - `node_modules/` and package management files
 - Testing and build configuration files
@@ -143,8 +152,8 @@ The resulting archive contains only the files needed for production WordPress in
 - `plugin-update-checker/` - Plugin update functionality
 - `scripts/` - Build and deployment scripts
 - `dist/` - Distribution builds (excluded from Git except .gitkeep files)
-  - `archives/` - Versioned archive files (.zip)
-  - `extracted/` - Extracted plugin files ready for deployment
+    - `archives/` - Versioned archive files (.zip)
+    - `extracted/` - Extracted plugin files ready for deployment
 - `docker-compose.yml` - Local development environment
 - `Dockerfile.cli` - CLI container Dockerfile with zip utility
 - `.env` - Docker Compose project configuration
