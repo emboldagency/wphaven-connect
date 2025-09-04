@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.8.1
-Stable tag: 0.18.0
+Stable tag: 0.18.1
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.18.1 =
+* Fix issue with support ticket always showing the success message
 
 = 0.18.0 =
 * Create support tickets right from the WordPress dashboard
