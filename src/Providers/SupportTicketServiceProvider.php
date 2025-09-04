@@ -66,9 +66,12 @@ class SupportTicketServiceProvider extends ServiceProvider
             return;
         }
 
+        $plugin_dir_url = plugin_dir_url(__FILE__);
+        $plugin_dir_url = str_replace('/src/Providers/', '/', $plugin_dir_url);
+        
         wp_enqueue_script(
             'wphaven-support-ticket',
-            plugins_url('wphaven-connect/src/assets/js/support-ticket.js', dirname(dirname(__DIR__))),
+            $plugin_dir_url . 'src/assets/js/support-ticket.js',
             ['jquery'],
             '1.0.0',
             true
@@ -76,7 +79,7 @@ class SupportTicketServiceProvider extends ServiceProvider
 
         wp_enqueue_style(
             'wphaven-support-ticket',
-            plugins_url('wphaven-connect/src/assets/css/support-ticket.css', dirname(dirname(__DIR__))),
+            $plugin_dir_url . 'src/assets/css/support-ticket.css',
             [],
             '1.0.0'
         );
@@ -125,7 +128,7 @@ class SupportTicketServiceProvider extends ServiceProvider
             </form>
 
             <div id="wphaven-success-message" style="display:none;">
-                <div class="notice notice-success">
+                <div class="wphaven-success-notice">
                     <p><strong>Support ticket created successfully!</strong></p>
                     <p>We'll email you with a reply after your ticket has been reviewed.</p>
                 </div>

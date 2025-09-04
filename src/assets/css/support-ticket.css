@@ -37,9 +37,20 @@
     padding: 20px;
 }
 
-#wphaven-success-message .notice {
+.wphaven-success-notice {
     margin: 0;
     padding: 15px;
+    background-color: #d1f2eb;
+    border: 1px solid #46b450;
+    border-left: 4px solid #46b450;
+    border-radius: 2px;
+    color: #155724;
+}
+
+.wphaven-success-notice p {
+    margin: 0.5em 0;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 /* Loading state */
