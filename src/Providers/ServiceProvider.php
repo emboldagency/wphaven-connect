@@ -26,6 +26,7 @@ class ServiceProvider
         PhpInfoServiceProvider::class,
         ServerInfoServiceProvider::class,
         SupportTicketServiceProvider::class,
+        UpdateCommitMessageProvider::class,
         WooCommerceServiceProvider::class,
         WordfenceServiceProvider::class,
     ];
