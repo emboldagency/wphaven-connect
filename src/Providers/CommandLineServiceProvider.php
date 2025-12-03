@@ -4,9 +4,11 @@ namespace WPHavenConnect\Providers;
 
 use WP_CLI;
 
-class CommandLineServiceProvider {
+class CommandLineServiceProvider
+{
 
-    public function register() {
+    public function register()
+    {
         if (defined('WP_CLI') && WP_CLI) {
             WP_CLI::add_command('user session create', [$this, 'create_user_session']);
             WP_CLI::add_command('homepage edit', [$this, 'edit_homepage']);
@@ -16,7 +18,8 @@ class CommandLineServiceProvider {
         add_action('init', [$this, 'handle_magic_login']);
     }
 
-    public function create_user_session($args, $assoc_args) {
+    public function create_user_session($args, $assoc_args)
+    {
         $user_login = $args[0];
         $user = get_user_by('login', $user_login);
 
@@ -49,9 +52,17 @@ class CommandLineServiceProvider {
         WP_CLI::line(json_encode(['login_url' => $login_url]));
     }
 
-    public function handle_magic_login() {
+    public function handle_magic_login()
+    {
         if (isset($_GET['magic_login'])) {
             $token = sanitize_text_field($_GET['magic_login']);
+
+            // If user is already logged in, just redirect to admin
+            if (is_user_logged_in()) {
+                wp_safe_redirect(admin_url());
+                exit;
+            }
+
             $user_query = new \WP_User_Query([
                 'meta_key' => '_magic_login_token',
                 'meta_value' => $token,
