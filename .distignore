@@ -15,9 +15,8 @@ bin
 composer.json
 composer.lock
 dist
+docker
 docker-compose.yml
-docker.env
-Dockerfile.cli
 Gruntfile.js
 node_modules
 package.json
