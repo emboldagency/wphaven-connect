@@ -8,18 +8,55 @@
 
 WordPress plugin that provides functionality to connect to the remote maintenance and management platform.
 
-## Environment Constants
+## Features
 
-The plugin supports several environment-specific constants:
+- **Development Mail Control**: Block or redirect emails in non-production environments with SMTP override support
+- **Custom Admin Login URL**: Hide default WordPress login URLs (wp-admin, wp-login.php) with custom slug
+- **Error Monitoring**: Centralized error handling and reporting to WP Haven platform
+- **Debug Notice Suppression**: Automatically suppress textdomain and other development notices
+- **Magic Login Links**: Generate secure one-time login URLs via WP-CLI for easier site access
+- **Environment Indicator**: Visual admin bar badge showing current environment (development, staging, production)
+- **Elevated User Management**: Restrict plugin, theme, and file management to specific admin emails
+- **Support Ticket Integration**: Submit support tickets directly from WordPress dashboard
+- **Wordfence Integration**: Automatic Wordfence alert forwarding to WP Haven platform
+- **WooCommerce Enhancements**: Additional WooCommerce-specific functionality and monitoring
+- **Server & PHP Info API**: Expose server and PHP configuration details via secure API endpoints
+- **Asset URL Fallback**: Configure alternative asset URLs with ASSET_URL constant
+- **Haven WAF Cookie**: Set security cookies for elevated users (admin/editor) for WAF bypass
 
-- `DISABLE_MAIL`: Control email functionality (true to disable)
-- `ELEVATED_EMAILS`: Array of additional admin emails
-- `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug (hides default wp-admin/wp-login.php)
-- `WPH_SUPPRESS_TEXTDOMAIN_NOTICES`: Suppress textdomain loading notices (defaults to true in development)
+## Configuration
+
+Configuration is available via:
+
+1. **WordPress Settings Page** (`Settings > WP Haven Connect`):
+
+   - Mail delivery mode (No Override, SMTP Override, Block All)
+   - SMTP configuration (host, port, from address, from name)
+   - Debug notice suppression
+   - Custom notice strings to suppress
+   - Elevated admin emails
+   - WP Haven API base URL
+   - Custom admin login slug
+
+2. **Environment Constants** (in `wp-config.php`):
+   - `ELEVATED_EMAILS`: Array of admin emails
+   - `DISABLE_MAIL`: Block all mail when true (legacy, prefer mail_mode settings)
+   - `EMBOLD_SUPPRESS_LOGS`: Suppress debug notices when true
+   - `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug
+   - `WPH_SHOW_ENVIRONMENT_INDICATOR`: Show/hide environment indicator badge in admin bar
+   - `WPHAVEN_API_BASE`: WP Haven API base URL
+   - `EMBOLD_ALLOW_SVG`: Enable/disable SVG uploads (if Embold Tweaks is also active)
+   - `EMBOLD_DISABLE_XMLRPC`: Enable/disable XML-RPC blocking (if Embold Tweaks is also active)
+
+Constants take precedence over plugin settings.
 
 Example usage in `wp-config.php`:
 
-`define('ELEVATED_EMAILS', ['worf@embold.com', 'spock@embold.com']);`
+```php
+define('ELEVATED_EMAILS', ['worf@embold.com', 'spock@embold.com']);
+define('EMBOLD_SUPPRESS_LOGS', true);
+define('WPH_ADMIN_LOGIN_SLUG', 'secret-login');
+```
 
 ## Development Setup
 
@@ -63,6 +100,7 @@ The plugin uses **GitHub Actions** to automatically create and publish releases:
 **How it works:**
 
 1. Create a new Git tag with semantic versioning:
+
    ```bash
    git tag 0.19.1
    git push origin 0.19.1
@@ -74,8 +112,23 @@ The plugin uses **GitHub Actions** to automatically create and publish releases:
    - Installs the `wp-cli/dist-archive-command`
    - Creates a clean distribution ZIP file
    - Publishes it as a GitHub Release
+3. The build creates this structure:
 
-3. The ZIP archive is automatically available for:
+   ```
+   dist/
+   ├── archives/
+   │   └── wphaven-connect-v0.17.0.zip  (WordPress-ready)
+   └── extracted/
+       ├── wphaven.php
+       ├── src/
+       └── ... (all plugin files)
+   └── extracted/
+   ├── wphaven.php
+   ├── src/
+   └── ... (all plugin files)
+   ```
+
+4. The ZIP archive is automatically available for:
    - Direct downloads from GitHub Releases
    - Distribution to WordPress.org plugin registry
    - Auto-update functionality via plugin-update-checker
@@ -96,18 +149,22 @@ act --workflows ".github/workflows/release.yml" --job dist
 For local development builds without triggering a release:
 
 **Option 1: Development build (skip version checks)**
+
 ```bash
 composer run build:dev
 ```
 
 **Option 2: Production build (requires version match)**
+
 ```bash
 composer run build
 ```
+
 - Verifies that `wphaven.php` version matches the latest Git tag
 - Run `composer run version:fix` to auto-sync versions
 
 **Option 3: Using the Build Script Directly**
+
 ```bash
 ./scripts/build.sh              # Check version and build
 ./scripts/build.sh --dev        # Skip version check (dev mode)
@@ -115,6 +172,7 @@ composer run build
 ```
 
 All methods:
+
 - Extract version from `wphaven.php`
 - Create a clean distribution archive using `wp dist-archive`
 - Generate `dist/archives/wphaven-connect-<VERSION>.zip`
@@ -146,13 +204,5 @@ The resulting archive contains only the files needed for production WordPress in
 - `src/` - Main plugin source code
 - `vendor/` - Composer dependencies
 - `plugin-update-checker/` - Plugin update functionality
-- `scripts/` - Build and deployment scripts
-  - `build.sh` - Creates distribution archives
-  - `sync-version-local.sh` - Syncs version from Git tags
-- `dist/` - Distribution builds (excluded from Git)
-  - `archives/` - Versioned archive files (.zip)
-- `docker-compose.yml` - Local development environment
-- `Dockerfile.cli` - CLI container Dockerfile with zip utility
-- `.env` - Docker Compose project configuration
-- `.distignore` - Files excluded from distribution archives
-
+- `readme.txt` - Plugin readme/changelog
+- `wphaven.php` - Main plugin entrypoint
