@@ -43,6 +43,16 @@ class SettingsServiceProvider
                 __('Settings reset to defaults.', 'wphaven-connect'),
                 'updated'
             );
+
+            // Schedule cleanup of the notice after this request
+            add_action('shutdown', function () {
+                global $wp_settings_errors;
+                if (isset($wp_settings_errors)) {
+                    $wp_settings_errors = array_filter($wp_settings_errors, function ($error) {
+                        return $error['setting'] !== self::OPTION_NAME || $error['code'] !== 'wphaven_reset';
+                    });
+                }
+            });
         }
     }
 
@@ -104,7 +114,7 @@ class SettingsServiceProvider
         // --- SECTION: Mail Configuration ---
         add_settings_section(
             'wphaven_connect_mail',
-            __('Environment Mail Safeguards', 'wphaven-connect'),
+            __('Development Mail Configuration', 'wphaven-connect'),
             function () {
                 echo '<p>' . esc_html__('Configure mail blocking behavior for non-production environments.', 'wphaven-connect') . '</p>';
             },
@@ -261,6 +271,13 @@ class SettingsServiceProvider
 
             // Output standard settings errors (saved via add_settings_error)
             settings_errors(self::OPTION_NAME);
+            // Clear the notice queue after rendering so it doesn't persist on reload
+            add_action('shutdown', function () {
+                global $wp_settings_errors;
+                if (isset($wp_settings_errors)) {
+                    $wp_settings_errors = [];
+                }
+            });
 
             // Show result of test email if present (Custom test action)
             if (isset($_GET['wphaven_connect_test'])):
@@ -428,6 +445,18 @@ class SettingsServiceProvider
 
     public function renderElevatedEmailsField()
     {
+        // Check if Embold is installed
+        if (class_exists('App\EmboldWordpressTweaks')) {
+            $embold_url = admin_url('options-general.php?page=embold-wordpress-tweaks');
+            echo '<div class="notice notice-info inline"><p>';
+            echo sprintf(
+                wp_kses_post(__('Elevated admin emails are managed by <strong>Embold WordPress Tweaks</strong>. <a href="%s">Configure in Embold &rarr;</a>', 'wphaven-connect')),
+                esc_url($embold_url)
+            );
+            echo '</p></div>';
+            return;
+        }
+
         $opts = $this->getOptions();
         $name = self::OPTION_NAME . '[elevated_emails]';
         // Reuse similar logic to Embold for constant checking

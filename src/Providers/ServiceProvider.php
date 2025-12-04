@@ -12,10 +12,10 @@ class ServiceProvider
             // Register the ErrorHandlerProvider first to ensure it initializes early
         ErrorHandlerProvider::class,
 
-            // TextdomainNoticeSuppressionProvider is registered early in main plugin file
-            // so we don't include it here to avoid duplicate registration
+        // TextdomainNoticeSuppressionProvider is registered early in main plugin file
+        // so we don't include it here to avoid duplicate registration
 
-            // Add other service providers here
+        // Add other service providers here
         AssetUrlServiceProvider::class,
         ClientAlertsProvider::class,
         CommandLineServiceProvider::class,

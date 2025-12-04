@@ -11,7 +11,7 @@
  */
 
 if (!defined('ABSPATH')) {
-    exit;
+	exit;
 }
 
 require_once __DIR__ . '/vendor/autoload.php';
@@ -19,6 +19,7 @@ require 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 use WPHavenConnect\Providers\ServiceProvider;
+use WPHavenConnect\Providers\DeactivationProvider;
 
 // Import the TextdomainNoticeSuppressionProvider to ensure it is registered early
 use WPHavenConnect\Providers\TextdomainNoticeSuppressionProvider;
@@ -26,38 +27,41 @@ use WPHavenConnect\Providers\TextdomainNoticeSuppressionProvider;
 class WPHavenConnect
 {
 
-    private $update_checker;
+	private $update_checker;
 
-    public function __construct()
-    {
-        // Initialize textdomain suppression immediately when plugin loads
-        // This needs to happen before other plugins load to ensure MU plugin is created early
-        $this->init_textdomain_suppression();
+	public function __construct()
+	{
+		// Register deactivation hook early
+		DeactivationProvider::register();
 
-        $this->init_update_checker();
-        add_action('plugins_loaded', [$this, 'init_services'], 0);
-    }
+		// Initialize textdomain suppression immediately when plugin loads
+		// This needs to happen before other plugins load to ensure MU plugin is created early
+		$this->init_textdomain_suppression();
 
-    private function init_textdomain_suppression()
-    {
-        // Register the textdomain suppression provider immediately
-        (new TextdomainNoticeSuppressionProvider())->register();
-    }
+		$this->init_update_checker();
+		add_action('plugins_loaded', [$this, 'init_services'], 0);
+	}
 
-    public function init_services()
-    {
-        new ServiceProvider();
-    }
+	private function init_textdomain_suppression()
+	{
+		// Register the textdomain suppression provider immediately
+		(new TextdomainNoticeSuppressionProvider())->register();
+	}
 
-    private function init_update_checker()
-    {
-        $this->update_checker = PucFactory::buildUpdateChecker(
-            'https://github.com/emboldagency/wphaven-connect/',
-            __FILE__,
-            'wphaven-connect'
-        );
-        $this->update_checker->getVcsApi()->enableReleaseAssets();
-    }
+	public function init_services()
+	{
+		new ServiceProvider();
+	}
+
+	private function init_update_checker()
+	{
+		$this->update_checker = PucFactory::buildUpdateChecker(
+			'https://github.com/emboldagency/wphaven-connect/',
+			__FILE__,
+			'wphaven-connect'
+		);
+		$this->update_checker->getVcsApi()->enableReleaseAssets();
+	}
 }
 
 // Initialize the plugin

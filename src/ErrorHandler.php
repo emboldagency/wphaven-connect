@@ -6,10 +6,6 @@ use WPHavenConnect\Utilities\Environment;
 
 class ErrorHandler
 {
-
-    private $suppress_textdomain_notice = false;
-
-
     public function __construct()
     {
         $this->register_error_handlers();
@@ -17,28 +13,13 @@ class ErrorHandler
 
     private function register_error_handlers()
     {
-        // Suppress _load_textdomain_just_in_time doing_it_wrong notices if enabled
-        // Can be controlled via WPH_SUPPRESS_TEXTDOMAIN_NOTICES constant in wp-config.php
-        // Defaults to true in development environment
-        $suppress_textdomain = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
+        // Note: Notice suppression logic has been moved to Embold WordPress Tweaks.
+        // This class now strictly handles capturing and reporting errors to the platform.
 
-
-        if ($suppress_textdomain) {
-            add_filter('doing_it_wrong_trigger_error', function ($status, $function_name) {
-                if ('_load_textdomain_just_in_time' === $function_name) {
-                    return false;
-                }
-                return $status;
-            }, 10, 2);
-        }
-
-        // Also hook into doing_it_wrong_run to log all "doing it wrong" calls for debugging
+        // Hook into doing_it_wrong_run to log calls if needed for debugging context,
+        // but we no longer suppress them here.
         add_action('doing_it_wrong_run', function ($function, $message, $version) {
-
-            // If this is a textdomain-related notice and we should suppress it, note that
-            if (strpos($message, '_load_textdomain_just_in_time') !== false || strpos($message, 'textdomain') !== false) {
-                $should_suppress = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
-            }
+            // Optional: You could log specific debug info here if needed
         }, 10, 3);
 
         set_error_handler([$this, 'handle_error']);
@@ -52,7 +33,7 @@ class ErrorHandler
 
         $this->send_slack_notification($error);
 
-        // Return false for fatal errors so PHP shows them
+        // Return false so PHP handles standard reporting/logging
         return !in_array($errno, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR]);
     }
 
