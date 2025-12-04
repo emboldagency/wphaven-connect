@@ -1,0 +1,13 @@
+/**
+ * Settings page styles
+ */
+
+/* Unified Message styling for constants in wp-config */
+.embold-const-override,
+.embold-const-override.description {
+  color: #0073aa;
+  font-weight: 600;
+  margin-top: 8px !important;
+  font-size: 13px;
+  line-height: 2;
+}

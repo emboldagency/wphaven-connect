@@ -16,7 +16,35 @@ class EnvironmentIndicatorAdminBarBadgeProvider
 
     public function register()
     {
+        // Check if feature is enabled via setting or constant
+        if (!$this->isEnvironmentIndicatorEnabled()) {
+            return;
+        }
+
         add_action('init', [$this, 'init_hooks']);
+    }
+
+    /**
+     * Determine if environment indicator should be shown
+     * Checks constant first, then option, defaults to true (show indicator)
+     *
+     * @return bool True if environment indicator should be shown
+     */
+    private function isEnvironmentIndicatorEnabled(): bool
+    {
+        // Constant takes priority
+        if (defined('WPH_SHOW_ENVIRONMENT_INDICATOR')) {
+            return (bool) constant('WPH_SHOW_ENVIRONMENT_INDICATOR');
+        }
+
+        // Plugin option
+        $opts = get_option('wphaven_connect_options', []);
+        if (isset($opts['show_environment_indicator'])) {
+            return (bool) $opts['show_environment_indicator'];
+        }
+
+        // Default: show indicator (return true)
+        return true;
     }
 
     /**
