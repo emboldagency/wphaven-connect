@@ -234,7 +234,7 @@ class SettingsServiceProvider
     {
         return wp_parse_args(get_option(self::OPTION_NAME, []), [
             // Defaults
-            'admin_login_slug' => 'em-login',
+            'admin_login_slug' => '',
             'elevated_emails' => [],
             'mail_transport_mode' => 'no_override',
             'smtp_from_name' => 'Local Mailpit',
@@ -284,6 +284,7 @@ class SettingsServiceProvider
 
         $options = $this->getOptions();
         $admin_email = get_option('admin_email');
+        $permalink_structure = get_option('permalink_structure');
         ?>
         <div class="wrap">
             <h1>
@@ -291,6 +292,20 @@ class SettingsServiceProvider
             </h1>
 
             <?php
+            // Check Permalinks
+            if (empty($permalink_structure)) {
+                ?>
+                <div class="notice notice-warning">
+                    <p>
+                        <strong><?php echo esc_html__('Warning:', 'wphaven-connect'); ?></strong>
+                        <?php echo esc_html__('Permalinks are set to "Plain". The "Custom admin login slug" feature requires pretty permalinks (e.g., "Post name") to work correctly.', 'wphaven-connect'); ?>
+                        <a
+                            href="<?php echo esc_url(admin_url('options-permalink.php')); ?>"><?php echo esc_html__('Update Permalinks', 'wphaven-connect'); ?></a>
+                    </p>
+                </div>
+                <?php
+            }
+
             // Output standard settings errors (saved via add_settings_error)
             settings_errors(self::OPTION_NAME);
 
