@@ -9,14 +9,21 @@ class SupportTicketServiceProvider extends ServiceProvider
 {
     private function getApiBase()
     {
-        // Allow override via constant for different environments
+        // Allow override via constant or plugin option: Constant > Plugin Option > Default
         if (defined('WPHAVEN_API_BASE')) {
             // remove trailing / if exists
             $base = rtrim(WPHAVEN_API_BASE, '/');
-
             return $base . '/api/v1/wphaven-connect';
         }
 
+        // Check plugin option
+        $opts = get_option('wphaven_connect_options', []);
+        if (!empty($opts['wphaven_api_base'])) {
+            $base = rtrim($opts['wphaven_api_base'], '/');
+            return $base . '/api/v1/wphaven-connect';
+        }
+
+        // Default to wphaven.app
         return 'https://wphaven.app/api/v1/wphaven-connect';
     }
 
@@ -68,7 +75,7 @@ class SupportTicketServiceProvider extends ServiceProvider
 
         $plugin_dir_url = plugin_dir_url(__FILE__);
         $plugin_dir_url = str_replace('/src/Providers/', '/', $plugin_dir_url);
-        
+
         wp_enqueue_script(
             'wphaven-support-ticket',
             $plugin_dir_url . 'src/assets/js/support-ticket.js',
@@ -102,12 +109,12 @@ class SupportTicketServiceProvider extends ServiceProvider
                     <tr>
                         <td><label for="wphaven-name">Name:</label></td>
                         <td><input style="width: 100%;" type="text" id="wphaven-name" name="name"
-                                   value="<?php echo esc_attr($current_user->display_name); ?>" required /></td>
+                                value="<?php echo esc_attr($current_user->display_name); ?>" required /></td>
                     </tr>
                     <tr>
                         <td><label for="wphaven-email">Email:</label></td>
                         <td><input style="width: 100%;" type="email" id="wphaven-email" name="email"
-                                   value="<?php echo esc_attr($current_user->user_email); ?>" required /></td>
+                                value="<?php echo esc_attr($current_user->user_email); ?>" required /></td>
                     </tr>
                     <tr>
                         <td><label for="wphaven-subject">Subject:</label></td>
@@ -116,7 +123,7 @@ class SupportTicketServiceProvider extends ServiceProvider
                     <tr>
                         <td><label for="wphaven-description">Description:</label></td>
                         <td><textarea style="width: 100%;" id="wphaven-description" name="description" rows="5"
-                                      required></textarea></td>
+                                required></textarea></td>
                     </tr>
                 </table>
 

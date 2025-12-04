@@ -1,0 +1,20 @@
+/**
+ * Settings page styles for WP Haven Connect
+ */
+
+/* Unified Message styling for constants in wp-config */
+.wph-const-override,
+.wph-const-override.description {
+  color: #0073aa; /* Standard WP Blue */
+  font-weight: 600;
+  margin-top: 8px !important;
+  font-size: 13px;
+  line-height: 2;
+}
+
+.wph-const-override .constant-name {
+  /* font-style: italic; */
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
