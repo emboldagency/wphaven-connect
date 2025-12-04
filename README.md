@@ -8,18 +8,29 @@
 
 WordPress plugin that provides functionality to connect to the remote maintenance and management platform.
 
-## Environment Constants
+## Configuration
 
-The plugin supports several environment-specific constants:
+Configuration is available via:
 
-- `DISABLE_MAIL`: Control email functionality (true to disable)
-- `ELEVATED_EMAILS`: Array of additional admin emails
-- `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug (hides default wp-admin/wp-login.php)
-- `WPH_SUPPRESS_TEXTDOMAIN_NOTICES`: Suppress textdomain loading notices (defaults to true in development)
+1. **WordPress Settings Page** (`Settings > WP Haven Connect`):
+   - Mail delivery mode (No Override, SMTP Override, Block All)
+   - SMTP configuration (host, port, from address, from name)
+   - Debug notice suppression
+   - Custom notice strings to suppress
+   - Elevated admin emails
+   - WP Haven API base URL
+   - Custom admin login slug
 
-Example usage in `wp-config.php`:
+2. **Environment Constants** (in `wp-config.php`):
+   - `ELEVATED_EMAILS`: Array of admin emails
+   - `WPH_DISABLE_MAIL` (formerly `DISABLE_MAIL`): Block all mail when true
+   - `WPH_SMTP_OVERRIDE`: Force SMTP mode when true
+   - `WPH_SMTP_HOST`, `WPH_SMTP_PORT`, `WPH_SMTP_FROM_EMAIL`, `WPH_SMTP_FROM_NAME`: SMTP settings
+   - `WPH_SUPPRESS_NOTICES` (formerly `WPH_SUPPRESS_TEXT_NOTICES`): Suppress debug notices when true
+   - `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug
+   - `WPHAVEN_API_BASE`: WP Haven API base URL
 
-`define('ELEVATED_EMAILS', ['worf@embold.com', 'spock@embold.com']);`
+Constants take precedence over plugin settings.
 
 ## Development Setup
 
