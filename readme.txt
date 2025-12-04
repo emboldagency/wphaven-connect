@@ -2,8 +2,8 @@
 Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
-Tested up to: 6.8.1
-Stable tag: 0.18.1
+Tested up to: 6.9.0
+Stable tag: 0.19.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,15 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.19.0 =
+* Add update commit message generator.
+* Update Docker development configuration build process and doc.
+* Add plugin options page with settings.
+* Update disable mail function for compatibility with equivelant embold-wordpress-tweaks feature.
+* Fix magic login expired token notice when already logged in.
+* Move notice suppression to embold-wordpress-tweaks.
+* Fix custom admin login slug to properly handle password reset flows and prevent redirect loops.
 
 = 0.18.1 =
 * Fix issue with support ticket always showing the success message
