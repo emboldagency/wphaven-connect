@@ -47,9 +47,38 @@ class CommandLineServiceProvider
         update_user_meta($user->ID, '_magic_login_token', $token);
 
         // Create a custom login URL with the token
-        $login_url = add_query_arg('magic_login', $token, admin_url());
+        // Use custom admin login slug if defined, otherwise fall back to wp-admin
+        $login_url = $this->get_login_url_with_magic_token($token);
 
         WP_CLI::line(json_encode(['login_url' => $login_url]));
+    }
+
+    private function get_login_url_with_magic_token($token)
+    {
+        // Check if custom admin login slug is configured
+        $custom_slug = $this->get_custom_admin_login_slug();
+
+        if (!empty($custom_slug)) {
+            // Use custom login slug
+            $login_url = home_url('/' . trim($custom_slug, '/') . '/');
+        } else {
+            // Fall back to default wp-admin
+            $login_url = admin_url();
+        }
+
+        return add_query_arg('magic_login', $token, $login_url);
+    }
+
+    private function get_custom_admin_login_slug()
+    {
+        // Check for constant first
+        if (defined('WPH_ADMIN_LOGIN_SLUG')) {
+            return constant('WPH_ADMIN_LOGIN_SLUG');
+        }
+
+        // Check plugin options
+        $opts = get_option('wphaven_connect_options', []);
+        return !empty($opts['admin_login_slug']) ? $opts['admin_login_slug'] : '';
     }
 
     public function handle_magic_login()
