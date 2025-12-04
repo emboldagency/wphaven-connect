@@ -18,9 +18,9 @@ class ErrorHandler
     private function register_error_handlers()
     {
         // Suppress _load_textdomain_just_in_time doing_it_wrong notices if enabled
-        // Can be controlled via WPH_SUPPRESS_TEXTDOMAIN_NOTICES constant in wp-config.php
+        // Can be controlled via WPH_SUPPRESS_NOTICES constant in wp-config.php
         // Defaults to true in development environment
-        $suppress_textdomain = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
+        $suppress_textdomain = defined('WPH_SUPPRESS_NOTICES') ? WPH_SUPPRESS_NOTICES : Environment::is_development();
 
 
         if ($suppress_textdomain) {
@@ -37,7 +37,7 @@ class ErrorHandler
 
             // If this is a textdomain-related notice and we should suppress it, note that
             if (strpos($message, '_load_textdomain_just_in_time') !== false || strpos($message, 'textdomain') !== false) {
-                $should_suppress = defined('WPH_SUPPRESS_TEXTDOMAIN_NOTICES') ? WPH_SUPPRESS_TEXTDOMAIN_NOTICES : Environment::is_development();
+                $should_suppress = defined('WPH_SUPPRESS_NOTICES') ? WPH_SUPPRESS_NOTICES : Environment::is_development();
             }
         }, 10, 3);
 
