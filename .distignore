@@ -8,6 +8,7 @@
 .github
 .gitignore
 .gitmodules
+.vscode
 *.sql
 *.tar.gz
 *.zip
@@ -20,7 +21,9 @@ docker-compose.yml
 Gruntfile.js
 node_modules
 package.json
+phpcs.xml
 phpcs.xml.dist
+vendor
 phpcs.ruleset.xml
 phpstan.neon.dist
 phpunit.xml
