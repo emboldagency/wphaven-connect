@@ -23,7 +23,6 @@ node_modules
 package.json
 phpcs.xml
 phpcs.xml.dist
-vendor
 phpcs.ruleset.xml
 phpstan.neon.dist
 phpunit.xml

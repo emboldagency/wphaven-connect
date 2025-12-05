@@ -80,6 +80,13 @@ fi
 echo -e "📦 Build Version: ${YELLOW}${VERSION}${NC}"
 
 # ==============================================================================
+# Install Production Dependencies
+# ==============================================================================
+
+echo -e "${BLUE}📦 Installing production dependencies...${NC}"
+composer install --no-dev --prefer-dist --optimize-autoloader --quiet
+
+# ==============================================================================
 # Build Distribution Archive
 # ==============================================================================
 
