@@ -59,6 +59,11 @@ class TextdomainNoticeSuppressionProvider
         $strings_to_check = [
             '_load_textdomain_just_in_time',
             'Translation loading',
+            'automatic_feed_links',
+            'wp_deregister_script',
+            'wp_register_script',
+            'wp_enqueue_script',
+            'Scripts and styles should not be registered or enqueued until the',
         ];
 
         // Merge in custom strings from database settings
