@@ -3,8 +3,10 @@ name: WordPress Plugin Release
 on:
   push:
     tags:
-      # Match a semver tag
-      - "[0-9]+.[0-9]+.[0-9]"
+      # Match a semver tag (with optional v prefix)
+      - "v?[0-9]+.[0-9]+.[0-9]"
+      # Also match prerelease tags
+      - "v?[0-9]+.[0-9]+.[0-9]-*"
   workflow_dispatch:
 
 jobs:
@@ -23,8 +25,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Make sync-version-local.sh executable
-        run: chmod +x scripts/sync-version-local.sh
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Make build script executable
+        run: chmod +x scripts/build.sh scripts/sync-version-local.sh
 
       - name: Sync version from tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -32,22 +42,17 @@ jobs:
           export GIT_TAG="${GITHUB_REF_NAME}"
           bash scripts/sync-version-local.sh
 
-      - name: Check version from tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: bash scripts/sync-version-local.sh
-
       - name: Install dist-archive command
-        run: wp package install wp-cli/dist-archive-command:@stable
+        run: wp package install wp-cli/dist-archive-command:@stable --allow-root
 
-      - name: Build plugin
-        run: |
-          composer install --no-dev --prefer-dist --optimize-autoloader
+      - name: Install dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader
 
       - name: Build distribution archive
-        run: wp dist-archive . dist --create-target-dir
+        run: bash scripts/build.sh
 
       - name: Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ./dist/*
+          files: dist/archives/*

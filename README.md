@@ -56,82 +56,77 @@ docker compose exec cli wp package install <package-name>
 
 ## Building for Distribution
 
-### Building to dist/ Directory
+### Automated Release via GitHub Actions
 
-To build the plugin for distribution (excluding development files):
+The plugin uses **GitHub Actions** to automatically create and publish releases:
 
-1. Ensure the CLI container is running:
+**How it works:**
+
+1. Create a new Git tag with semantic versioning:
    ```bash
-   docker compose up cli -d
+   git tag 0.19.1
+   git push origin 0.19.1
    ```
 
-2. Build the plugin to the dist directory:
-   ```bash
-   # Option 1: Use the build script (recommended)
-   ./scripts/build.sh
-   
-   # Option 2: Manual steps
-   # Create distribution archive and extract to dist/
-   docker compose exec cli sh -c "cd /var/www/html/wp-content/plugins/wphaven-connect && wp dist-archive . /tmp/ --format=zip"
-   
-   # Set up directory structure
-   mkdir -p dist/archives dist/extracted
-   
-   # Copy versioned archive (replace ${VERSION} with actual version)
-   docker cp wphaven-connect-cli-1:/tmp/wphaven-connect.${VERSION}.zip ./dist/archives/wphaven-connect.${VERSION}.zip
-   
-   # Extract to dist/extracted/
-   cd dist/extracted && unzip -q ../archives/wphaven-connect.${VERSION}.zip && cd ../..
-   ```
+2. GitHub Actions automatically:
+   - Runs the `.github/workflows/release.yml` workflow
+   - Installs PHP, Composer, and WP-CLI
+   - Installs the `wp-cli/dist-archive-command`
+   - Creates a clean distribution ZIP file
+   - Publishes it as a GitHub Release
 
-3. The build creates this structure:
-   ```
-   dist/
-   ├── archives/
-   │   └── wphaven-connect-v0.17.0.zip  (WordPress-ready)
-   └── extracted/
-       ├── wphaven.php
-       ├── src/
-       └── ... (all plugin files)
-   ```
-   └── extracted/
-   ├── wphaven.php
-   ├── src/
-   └── ... (all plugin files)
-   ```
+3. The ZIP archive is automatically available for:
+   - Direct downloads from GitHub Releases
+   - Distribution to WordPress.org plugin registry
+   - Auto-update functionality via plugin-update-checker
 
-**Note**: On Windows, you can use WSL to run the bash script.
+**Testing the workflow locally:**
 
-### Creating Distribution Archives
+You can test the GitHub Actions workflow locally using [act](https://github.com/nektos/act):
 
-The project includes the `wp dist-archive` command for creating clean distribution archives that respect the
-`.distignore` file.
+```bash
+# Run the release workflow locally
+act --workflows ".github/workflows/release.yml" --job dist
 
-#### Setup (One-time)
+# The workflow will build and verify the archive without publishing
+```
 
-The `wp-cli/dist-archive-command` package is pre-installed in the persistent CLI container. The CLI container uses a
-custom Dockerfile (`Dockerfile.cli`) that extends the standard `wordpress:cli` image with zip utilities pre-installed
-for faster builds.
+### Manual Building to dist/ Directory
 
-#### Creating an Archive
+For local development builds without triggering a release:
 
-1. Ensure the containers are running:
-   ```bash
-   docker compose up -d
-   ```
+**Option 1: Development build (skip version checks)**
+```bash
+composer run build:dev
+```
 
-2. Create a distribution archive:
-   ```bash
-   # Navigate to the plugin directory and create archive
-   docker compose exec cli sh -c "cd /var/www/html/wp-content/plugins/wphaven-connect && wp dist-archive . /tmp/ --format=zip"
-   ```
+**Option 2: Production build (requires version match)**
+```bash
+composer run build
+```
+- Verifies that `wphaven.php` version matches the latest Git tag
+- Run `composer run version:fix` to auto-sync versions
 
-3. Copy the archive to your host machine:
-   ```bash
-   docker cp wphaven-connect-cli-1:/tmp/wphaven-connect.${VERSION}.zip .
-   ```
+**Option 3: Using the Build Script Directly**
+```bash
+./scripts/build.sh              # Check version and build
+./scripts/build.sh --dev        # Skip version check (dev mode)
+./scripts/build.sh --fix        # Sync versions and build
+```
 
-The zip format is used as it's the standard format for WordPress plugin installation via the admin interface.
+All methods:
+- Extract version from `wphaven.php`
+- Create a clean distribution archive using `wp dist-archive`
+- Generate `dist/archives/wphaven-connect-<VERSION>.zip`
+- Respect `.distignore` file for excluding development files
+
+### Build Output Structure
+
+```
+dist/
+└── archives/
+    └── wphaven-connect-v0.19.0.zip  (~186KB, WordPress-ready)
+```
 
 ### What Gets Excluded
 
@@ -139,9 +134,10 @@ The `.distignore` file excludes development files such as:
 
 - `.git/` directory and Git files
 - `node_modules/` and package management files
+- `composer.json` and `composer.lock`
 - Testing and build configuration files
 - Documentation files like `README.md`
-- Development scripts and tools
+- Development scripts and Docker files
 
 The resulting archive contains only the files needed for production WordPress installation.
 
@@ -151,9 +147,12 @@ The resulting archive contains only the files needed for production WordPress in
 - `vendor/` - Composer dependencies
 - `plugin-update-checker/` - Plugin update functionality
 - `scripts/` - Build and deployment scripts
-- `dist/` - Distribution builds (excluded from Git except .gitkeep files)
-    - `archives/` - Versioned archive files (.zip)
-    - `extracted/` - Extracted plugin files ready for deployment
+  - `build.sh` - Creates distribution archives
+  - `sync-version-local.sh` - Syncs version from Git tags
+- `dist/` - Distribution builds (excluded from Git)
+  - `archives/` - Versioned archive files (.zip)
 - `docker-compose.yml` - Local development environment
 - `Dockerfile.cli` - CLI container Dockerfile with zip utility
 - `.env` - Docker Compose project configuration
+- `.distignore` - Files excluded from distribution archives
+

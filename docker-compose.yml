@@ -5,9 +5,15 @@ services:
       - "8080:80"
     env_file:
       - docker/docker.env
+    environment:
+      # PHP configuration via environment variables
+      PHP_UPLOAD_MAX_FILESIZE: 256M
+      PHP_POST_MAX_SIZE: 256M
+      PHP_MEMORY_LIMIT: 256M
+      PHP_MAX_EXECUTION_TIME: 300
+      PHP_MAX_INPUT_TIME: 300
     volumes:
       - ./:/var/www/html/wp-content/plugins/wphaven-connect
-      - ./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
       - wordpress:/var/www/html
     depends_on:
       db:
