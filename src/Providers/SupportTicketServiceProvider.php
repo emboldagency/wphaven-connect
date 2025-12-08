@@ -75,7 +75,7 @@ class SupportTicketServiceProvider extends ServiceProvider
 
         $plugin_dir_url = plugin_dir_url(__FILE__);
         $plugin_dir_url = str_replace('/src/Providers/', '/', $plugin_dir_url);
-
+        
         wp_enqueue_script(
             'wphaven-support-ticket',
             $plugin_dir_url . 'src/assets/js/support-ticket.js',

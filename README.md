@@ -32,6 +32,10 @@ Configuration is available via:
 
 Constants take precedence over plugin settings.
 
+Example usage in `wp-config.php`:
+
+`define('ELEVATED_EMAILS', ['worf@embold.com', 'spock@embold.com']);`
+
 ## Development Setup
 
 This project uses Docker Compose for local development.
@@ -85,8 +89,22 @@ The plugin uses **GitHub Actions** to automatically create and publish releases:
    - Installs the `wp-cli/dist-archive-command`
    - Creates a clean distribution ZIP file
    - Publishes it as a GitHub Release
+3. The build creates this structure:
+   ```
+   dist/
+   ├── archives/
+   │   └── wphaven-connect-v0.17.0.zip  (WordPress-ready)
+   └── extracted/
+       ├── wphaven.php
+       ├── src/
+       └── ... (all plugin files)
+   └── extracted/
+   ├── wphaven.php
+   ├── src/
+   └── ... (all plugin files)
+   ```
 
-3. The ZIP archive is automatically available for:
+4. The ZIP archive is automatically available for:
    - Direct downloads from GitHub Releases
    - Distribution to WordPress.org plugin registry
    - Auto-update functionality via plugin-update-checker
@@ -157,13 +175,6 @@ The resulting archive contains only the files needed for production WordPress in
 - `src/` - Main plugin source code
 - `vendor/` - Composer dependencies
 - `plugin-update-checker/` - Plugin update functionality
-- `scripts/` - Build and deployment scripts
-  - `build.sh` - Creates distribution archives
-  - `sync-version-local.sh` - Syncs version from Git tags
-- `dist/` - Distribution builds (excluded from Git)
-  - `archives/` - Versioned archive files (.zip)
-- `docker-compose.yml` - Local development environment
-- `Dockerfile.cli` - CLI container Dockerfile with zip utility
-- `.env` - Docker Compose project configuration
-- `.distignore` - Files excluded from distribution archives
+- `readme.txt` - Plugin readme/changelog
+- `wphaven.php` - Main plugin entrypoint
 
