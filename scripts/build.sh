@@ -45,6 +45,10 @@ else
 	CURRENT_PLUGIN_VERSION=$(grep -E -o "Version: *[0-9A-Za-z.-]+" "$MAIN_FILE" | head -n1 | sed -E "s/Version: *//")
 	CURRENT_README_VERSION=$(grep -E -o "Stable tag: *[0-9A-Za-z.-]+" "$README_FILE" | head -n1 | sed -E "s/Stable tag: *//")
 
+	# For prerelease tags (e.g., 0.19.0-pre), extract base version for comparison
+	# This allows 0.19.0-pre tag to build with 0.19.0 file version
+	TAG_BASE_VERSION=$(echo "$LATEST_TAG" | sed -E 's/(-|\.pre|\.beta|\.rc).*//')
+
 	# Mode check (Fix vs Check vs Dev)
 	if [ "$1" == "--dev" ]; then
 		echo -e "${YELLOW}🔧 Development mode: Skipping version check.${NC}"
@@ -64,8 +68,8 @@ else
 			echo -e "${GREEN}✅ Files updated.${NC}"
 		fi
 	else
-		# Just Check
-		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ]; then
+		# Just Check - allow base version match for prerelease tags
+		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ] && [ "$CURRENT_PLUGIN_VERSION" != "$TAG_BASE_VERSION" ]; then
 			echo -e "${RED}❌ Version Mismatch!${NC}"
 			echo "   Git Tag: $LATEST_TAG"
 			echo "   File:    $CURRENT_PLUGIN_VERSION"
@@ -73,7 +77,14 @@ else
 			echo "   Or 'bash scripts/build.sh --dev' to skip version check for development."
 			exit 1
 		fi
-		echo -e "${GREEN}✅ Versions match ($LATEST_TAG).${NC}"
+		
+		# Use file version for archive naming, but log what we're doing
+		if [ "$LATEST_TAG" != "$TAG_BASE_VERSION" ]; then
+			echo -e "${GREEN}✅ Prerelease tag detected ($LATEST_TAG) - using file version ($CURRENT_PLUGIN_VERSION) for build.${NC}"
+			VERSION="$CURRENT_PLUGIN_VERSION"
+		else
+			echo -e "${GREEN}✅ Versions match ($LATEST_TAG).${NC}"
+		fi
 	fi
 fi
 
