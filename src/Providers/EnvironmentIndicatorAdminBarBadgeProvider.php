@@ -54,12 +54,11 @@ class EnvironmentIndicatorAdminBarBadgeProvider
      */
     public function init_hooks()
     {
-        // Early exit if the user is not logged in as administrator and not elevated.
-        if (
-            !is_user_logged_in()
-            || !current_user_can('administrator')
-            || !ElevatedUsers::currentIsElevated()
-        ) {
+        // Only allow administrators who are also elevated users (regardless of custom list).
+        $is_elevated = ElevatedUsers::currentIsElevated();
+        $is_admin = current_user_can('administrator');
+
+        if (!is_user_logged_in() || !$is_admin || !$is_elevated) {
             return;
         }
 
