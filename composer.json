@@ -5,7 +5,27 @@
             "WPHavenConnect\\": "src/"
         },
         "classmap": [
-            "src/Providers/ServiceProvider.php"
+            "src/Providers/ServiceProvider.php",
+            "plugin-update-checker/"
         ]
+    },
+    "require-dev": {
+        "wp-coding-standards/wpcs": "^3.0",
+        "phpcompatibility/php-compatibility": "^9.3",
+        "php-stubs/wordpress-stubs": "^6.9",
+        "squizlabs/php_codesniffer": "^3.13",
+        "php-stubs/wp-cli-stubs": "^2.12"
+    },
+    "scripts": {
+        "lint": "phpcs -s",
+        "format": "phpcbf",
+        "build": "bash scripts/build.sh",
+        "build:dev": "bash scripts/build.sh --dev",
+        "version:fix": "bash scripts/build.sh --fix"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
     }
 }

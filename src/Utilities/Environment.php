@@ -23,14 +23,14 @@ class Environment
      */
     public static function get_environment(): string
     {
-        // 1. Return from cache if already determined
+        // Return from cache if already determined
         if (null !== self::$environment) {
             return self::$environment;
         }
 
         $env = 'production'; // Default to production
 
-        // 2. Use WordPress standard methods first
+        // Use WordPress standard methods first
         if (function_exists('wp_get_environment_type')) {
             $env = wp_get_environment_type();
         } elseif (defined('WP_ENVIRONMENT_TYPE')) {
@@ -39,7 +39,7 @@ class Environment
             $env = WP_ENV;
         }
 
-        // 3. Normalize common aliases
+        // Normalize common aliases
         switch ($env) {
             case 'local':
                 $env = 'development';
@@ -51,7 +51,7 @@ class Environment
                 break;
         }
 
-        // 4. Fallback to host-based detection ONLY if the environment is not a valid final value.
+        // Fallback to host-based detection ONLY if the environment is not a valid final value.
         // This allows overriding a 'production' default from constants with more specific host rules.
         if (!in_array($env, self::ALLOWED_ENVS, true)) {
             $host = self::get_host();
@@ -66,7 +66,7 @@ class Environment
             }
         }
 
-        // 5. Final validation to ensure a valid type is returned
+        // Final validation to ensure a valid type is returned
         if (!in_array($env, self::ALLOWED_ENVS, true)) {
             $env = 'production';
         }

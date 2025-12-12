@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<ruleset name="WPHavenConnect">
+    <description>WordPress Coding Standards for WPHavenConnect Plugin</description>
+
+    <!-- Only scan .php files -->
+    <arg name="extensions" value="php"/>
+
+    <!-- Which files to check -->
+    <file>src/</file>
+    <file>wphaven.php</file>
+
+    <!-- Exclude vendor and dist directories -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/dist/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/plugin-update-checker/*</exclude-pattern>
+
+<!-- General exclusions for subdirectories within the scanned paths -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/.git/*</exclude-pattern>
+    <exclude-pattern>*/.github/*</exclude-pattern>
+    <exclude-pattern>*/.vscode/*</exclude-pattern>
+
+    <rule ref="WordPress">
+        <!-- Arrays: Enforce modern short syntax [] -->
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+
+        <exclude name="Generic.ControlStructures.DisallowYodaConditions.DisallowYodaConditions"/>
+        <exclude name="Squiz.Commenting.InlineComment.InvalidEndChar"/>
+        <exclude name="Squiz.PHP.CommentedOutCode.Found"/>
+        <exclude name="Universal.Operators.DisallowShortTernary.Found"/>
+        <exclude name="WordPress.DB.DirectDatabaseQuery.DirectQuery"/>
+        <exclude name="WordPress.DB.PreparedSQL.InterpolatedNotPrepared"/>
+        <exclude name="WordPress.DB.PreparedSQL.NotPrepared"/>
+        <exclude name="WordPress.DB.PreparedSQLPlaceholders.QuotedSimplePlaceholder"/>
+        <exclude name="WordPress.NamingConventions.ValidFunctionName"/>
+        <exclude name="WordPress.NamingConventions.ValidVariableName"/>
+        <exclude name="WordPress.PHP.DevelopmentFunctions.error_log_error_log"/>
+        <exclude name="WordPress.PHP.DevelopmentFunctions.error_log_print_r"/>
+        <exclude name="WordPress.PHP.DevelopmentFunctions.error_log_var_dump"/>
+        <exclude name="WordPress.PHP.DevelopmentFunctions.error_log_var_export"/>
+        <exclude name="WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting"/>
+        <exclude name="WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_error_reporting"/>
+        <exclude name="WordPress.PHP.DiscouragedPHPFunctions.system_calls_shell_exec"/>
+        <exclude name="WordPress.PHP.NoSilencedErrors.Discouraged"/>
+        <exclude name="WordPress.PHP.YodaConditions.NotYoda"/>
+        <exclude name="WordPress.Security.NonceVerification.Missing"/>
+        <exclude name="WordPress.WP.Capabilities.Unknown"/>
+    </rule>
+    <!-- Show progress -->
+    <arg value="p"/>
+
+    <!-- Show sniff names -->
+    <arg value="s"/>
+
+    <!-- Use colors in output -->
+    <arg name="colors"/>
+
+    <!-- Report width -->
+    <arg name="report-width" value="120"/>
+</ruleset>

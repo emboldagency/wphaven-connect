@@ -1,0 +1,23 @@
+# Custom WP-CLI image with zip utility and dist-archive command pre-installed
+FROM wordpress:cli
+
+# Switch to root to install packages
+USER root
+
+# Install required utilities
+RUN apk add --no-cache \
+    zip \
+    unzip \
+    git \
+    openssh
+
+# Switch back to www-data user (the default for wordpress:cli)
+USER www-data
+
+# Configure git to use HTTPS instead of SSH for GitHub (for www-data user)
+RUN git config --global url."https://github.com/".insteadOf git@github.com: && \
+    git config --global url."https://".insteadOf git:// && \
+    composer config -g github-protocols https --quiet 2>/dev/null || true
+
+# Install WP-CLI packages that we need for builds
+RUN wp package install wp-cli/dist-archive-command:dev-main --allow-root

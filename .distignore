@@ -8,6 +8,8 @@
 .github
 .gitignore
 .gitmodules
+.gitlab-ci.yml
+.vscode
 *.sql
 *.tar.gz
 *.zip
@@ -15,12 +17,12 @@ bin
 composer.json
 composer.lock
 dist
+docker
 docker-compose.yml
-docker.env
-Dockerfile.cli
 Gruntfile.js
 node_modules
 package.json
+phpcs.xml
 phpcs.xml.dist
 phpcs.ruleset.xml
 phpstan.neon.dist

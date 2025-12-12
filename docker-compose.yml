@@ -4,7 +4,14 @@ services:
     ports:
       - "8080:80"
     env_file:
-      - docker.env
+      - docker/docker.env
+    environment:
+      # PHP configuration via environment variables
+      PHP_UPLOAD_MAX_FILESIZE: 256M
+      PHP_POST_MAX_SIZE: 256M
+      PHP_MEMORY_LIMIT: 256M
+      PHP_MAX_EXECUTION_TIME: 300
+      PHP_MAX_INPUT_TIME: 300
     volumes:
       - ./:/var/www/html/wp-content/plugins/wphaven-connect
       - wordpress:/var/www/html
@@ -15,10 +22,10 @@ services:
   cli:
     image: emboldcreative/wp-cli:latest
     build:
-      context: .
+      context: docker
       dockerfile: Dockerfile.cli
     env_file:
-      - docker.env
+      - docker/docker.env
     volumes:
       - ./:/var/www/html/wp-content/plugins/wphaven-connect
       - wordpress:/var/www/html
@@ -34,17 +41,34 @@ services:
   db:
     image: mariadb:latest
     env_file:
-      - docker.env
+      - docker/docker.env
     volumes:
       - db:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       start_period: 10s
       interval: 10s
       timeout: 5s
       retries: 3
 
+  mailpit:
+    image: axllent/mailpit:latest
+    hostname: mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    volumes:
+      - mailpit_data:/data
+    environment:
+      - MP_API_PORT=8026
+      - MP_DATABASE=/data/mailpit.db
+      - MP_MAX_AGE=30d
+      - MP_MAX_MESSAGES=5000
+      - MP_SMTP_BIND_ADDR=0.0.0.0:1025
+      - MP_UI_BIND_ADDR=0.0.0.0:8025
+
 volumes:
   wordpress:
   db:
   wp_cli_cache:
+  mailpit_data:

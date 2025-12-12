@@ -1,72 +1,203 @@
 #!/bin/bash
 
-# Build script for WPHaven Connect plugin
-# This script creates a clean distribution build in the dist/ directory
+# Build script
+# 1. Syncs/Checks version numbers against Git tags
+# 2. Generates a production-ready ZIP in dist/archives
+#
+# Usage:
+#   bash scripts/build.sh              # Checks version, builds zip
+#   bash scripts/build.sh --fix        # Updates file versions to match Git tag, then builds
+#   bash scripts/build.sh --dev        # Skips version check (for development), builds zip
 
 set -e
 
-echo "🔧 Building WPHaven Connect plugin..."
+# Configuration
+PLUGIN_SLUG="wphaven-connect"
+MAIN_FILE="wphaven.php"
+README_FILE="readme.txt"
+DIST_DIR="dist/archives"
 
-# Set project name explicitly to avoid hash-based container names
-PROJECT_NAME="wphaven-connect"
-export COMPOSE_PROJECT_NAME="$PROJECT_NAME"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Extract version from plugin file
-VERSION=$(grep "Version:" wphaven.php | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
-echo "📦 Plugin version: $VERSION"
+echo -e "${BLUE}🔧 Starting Build Process for ${PLUGIN_SLUG}...${NC}"
 
-# Ensure CLI container is running
-echo "📦 Starting CLI container..."
-docker compose up cli -d
+# ==============================================================================
+# Version Synchronization
+# ==============================================================================
 
-# Get the actual container name (more robust)
-CLI_CONTAINER=$(docker compose ps -q cli)
-if [ -z "$CLI_CONTAINER" ]; then
-    echo "❌ CLI container not found!"
-    exit 1
+# Get the latest local Git tag (e.g., 0.15.1)
+# 2>/dev/null suppresses errors if no tags exist
+LATEST_TAG=$(git tag --list --sort=-version:refname | head -n 1)
+
+if [ -z "$LATEST_TAG" ]; then
+	echo -e "${YELLOW}⚠️  No Git tags found. Skipping version sync.${NC}"
+	# Fallback: Extract version from file if no tag exists
+	VERSION=$(grep "Version:" "$MAIN_FILE" | head -n1 | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
+else
+	VERSION="$LATEST_TAG"
+
+	# Check current file versions
+	CURRENT_PLUGIN_VERSION=$(grep -E -o "Version: *[0-9A-Za-z.-]+" "$MAIN_FILE" | head -n1 | sed -E "s/Version: *//")
+	CURRENT_README_VERSION=$(grep -E -o "Stable tag: *[0-9A-Za-z.-]+" "$README_FILE" | head -n1 | sed -E "s/Stable tag: *//")
+
+	# For prerelease tags (e.g., 0.19.0-pre), extract base version for comparison
+	# This allows 0.19.0-pre tag to build with 0.19.0 file version
+	TAG_BASE_VERSION=$(echo "$LATEST_TAG" | sed -E 's/(-|\.pre|\.beta|\.rc).*//')
+
+	# Mode check (Fix vs Check vs Dev)
+	if [ "$1" == "--dev" ]; then
+		echo -e "${YELLOW}🔧 Development mode: Skipping version check.${NC}"
+		VERSION="$CURRENT_PLUGIN_VERSION"
+	elif [ "$1" == "--fix" ]; then
+		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ] || [ "$CURRENT_README_VERSION" != "$LATEST_TAG" ]; then
+			echo -e "${BLUE}📦 Updating file versions to match tag: ${LATEST_TAG}...${NC}"
+
+			# Update Main Plugin File
+			sed -i.bak -E "s/(Version: *)[0-9A-Za-z.-]+/\1$LATEST_TAG/" "$MAIN_FILE"
+
+			# Update Readme
+			sed -i.bak -E "s/(Stable tag: *)[0-9A-Za-z.-]+/\1$LATEST_TAG/" "$README_FILE"
+
+			# Clean up sed backups (macOS/BSD vs GNU compatibility)
+			rm -f "$MAIN_FILE.bak" "$README_FILE.bak"
+			echo -e "${GREEN}✅ Files updated.${NC}"
+		fi
+	else
+		# Just Check - allow base version match for prerelease tags
+		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ] && [ "$CURRENT_PLUGIN_VERSION" != "$TAG_BASE_VERSION" ]; then
+			echo -e "${RED}❌ Version Mismatch!${NC}"
+			echo "   Git Tag: $LATEST_TAG"
+			echo "   File:    $CURRENT_PLUGIN_VERSION"
+			echo "   Run 'bash scripts/build.sh --fix' to sync them."
+			echo "   Or 'bash scripts/build.sh --dev' to skip version check for development."
+			exit 1
+		fi
+		
+		# Use file version for archive naming, but log what we're doing
+		if [ "$LATEST_TAG" != "$TAG_BASE_VERSION" ]; then
+			echo -e "${GREEN}✅ Prerelease tag detected ($LATEST_TAG) - using file version ($CURRENT_PLUGIN_VERSION) for build.${NC}"
+			VERSION="$CURRENT_PLUGIN_VERSION"
+		else
+			echo -e "${GREEN}✅ Versions match ($LATEST_TAG).${NC}"
+		fi
+	fi
 fi
 
-CLI_CONTAINER_NAME=$(docker inspect --format='{{.Name}}' $CLI_CONTAINER | sed 's/^.//')
-echo "📋 Using CLI container: $CLI_CONTAINER_NAME"
+echo -e "📦 Build Version: ${YELLOW}${VERSION}${NC}"
 
-# Create zip distribution archive
-echo "📦 Creating zip distribution archive..."
-docker compose exec cli sh -c "cd /var/www/html/wp-content/plugins/wphaven-connect && wp dist-archive . /tmp/ --format=zip"
+# ==============================================================================
+# Install Production Dependencies
+# ==============================================================================
 
-# Set up dist directory structure
-echo "📁 Setting up dist directory structure..."
-mkdir -p dist/archives
-mkdir -p dist/extracted
+echo -e "${BLUE}📦 Installing production dependencies...${NC}"
+composer install --no-dev --prefer-dist --optimize-autoloader --quiet
 
-# Clean existing files (except .gitkeep and directory structure)
-find dist/extracted -mindepth 1 -delete 2>/dev/null || true
-rm -f dist/archives/wphaven-connect-v*.zip 2>/dev/null || true
+# ==============================================================================
+# Build Distribution Archive
+# ==============================================================================
 
-# Copy and rename archives with version
-echo "📋 Copying versioned archive..."
-docker cp "$CLI_CONTAINER_NAME":/tmp/wphaven-connect.${VERSION}.zip "./dist/archives/wphaven-connect.${VERSION}.zip"
+# Setup Directory
+mkdir -p "$DIST_DIR"
+rm -f "$DIST_DIR/${PLUGIN_SLUG}"*.zip 2>/dev/null || true
 
-# Extract archive to extracted/
-echo "📂 Extracting to dist/extracted directory..."
-cd dist/extracted
-unzip -q "../archives/wphaven-connect.${VERSION}.zip" -d temp
+# Helper function to run wp dist-archive
+run_dist_archive() {
+	local cmd_prefix="$1" # e.g., "docker compose exec -T cli" or ""
+	local target_dir="$2" # e.g., "/var/www/html/..." or "."
+	local output_dir="$3" # e.g., "/tmp" or "dist/archives"
+
+	echo -e "${BLUE}🚀 Running dist-archive...${NC}"
+
+	# Construct the command
+	if [ -z "$cmd_prefix" ]; then
+		# Local execution
+		wp dist-archive . "$output_dir" --create-target-dir --format=zip
+	else
+		# Docker execution
+		# 1. Run the build inside container outputting to temp
+		$cmd_prefix sh -c "cd $target_dir && wp dist-archive . /tmp/ --format=zip --force"
+
+		# 2. Copy out (Assuming the standard naming convention of dist-archive)
+		# Note: dist-archive names files based on the version in the plugin file.
+		local container_id
+		container_id=$(docker compose ps -q cli)
+
+		# We assume the file generated is plugin-slug.version.zip
+		docker cp "${container_id}:/tmp/${PLUGIN_SLUG}.${VERSION}.zip" "./${DIST_DIR}/${PLUGIN_SLUG}.${VERSION}.zip"
+	fi
+}
+
+# ------------------------------------------------------------------------------
+# Environment Detection
+# ------------------------------------------------------------------------------
+
+if [ "$CI" = "true" ] || [ "$ACT" = "true" ]; then
+	echo "🤖 CI Environment Detected"
+	wp dist-archive . "$DIST_DIR" --create-target-dir --format=zip --allow-root
+
+elif command -v wp &>/dev/null && wp core version &>/dev/null; then
+	echo "✅ Local WP-CLI Detected"
+	run_dist_archive "" "." "$DIST_DIR"
+
+else
+	echo "🐳 Docker Environment Detected"
+
+	# Ensure CLI is up
+	STARTED_CLI=0
+	if [ -z "$(docker compose ps -q cli 2>/dev/null)" ]; then
+		echo -e "${YELLOW}⚠️  CLI container not running. Starting...${NC}"
+		docker compose up cli -d
+		STARTED_CLI=1
+	fi
+
+	# Standard Docker Path for plugins
+	DOCKER_PLUGIN_PATH="/var/www/html/wp-content/plugins/${PLUGIN_SLUG}"
+
+	run_dist_archive "docker compose exec -T cli" "$DOCKER_PLUGIN_PATH" ""
+fi
+
+# ==============================================================================
+# Verification
+# ==============================================================================
+
+if ls "$DIST_DIR/${PLUGIN_SLUG}"*.zip 1>/dev/null 2>&1; then
+	echo -e "${GREEN}✅ Build Complete!${NC}"
+	echo -e "📁 Archives located in: ${YELLOW}${DIST_DIR}/${NC}"
+	ls -lh "$DIST_DIR"
+else
+	echo -e "${RED}❌ Build Failed: No zip file created.${NC}"
+	exit 1
+fi
+
+# ==============================================================================
+# Extract Distribution for Inspection
+# ==============================================================================
+
+EXTRACTED_DIR="dist/extracted"
+echo -e "${BLUE}📂 Extracting distribution to ${EXTRACTED_DIR}...${NC}"
+
+# Clean and recreate extracted directory
+find "$EXTRACTED_DIR" -mindepth 1 -delete 2>/dev/null || true
+mkdir -p "$EXTRACTED_DIR"
+
+# Extract the ZIP
+cd "$EXTRACTED_DIR"
+unzip -q "../archives/${PLUGIN_SLUG}.${VERSION}.zip" -d temp 2>/dev/null || unzip -q "../archives/"*.zip -d temp 2>/dev/null
 mv temp/*/* . 2>/dev/null || mv temp/* . 2>/dev/null || true
 rm -rf temp
 cd ../..
 
-echo "✅ Build complete!"
-echo "📁 Distribution structure:"
-echo "   dist/archives/wphaven-connect.${VERSION}.zip (WordPress-ready)"
-echo "   dist/extracted/ (plugin files)"
+echo -e "${GREEN}✅ Distribution extracted.${NC}"
+echo -e "📁 Files available in: ${YELLOW}${EXTRACTED_DIR}/${NC}"
 
-# Get file sizes
-ZIP_SIZE=$(docker compose exec cli sh -c "ls -lh /tmp/wphaven-connect.${VERSION}.zip 2>/dev/null" | awk '{print $5}' 2>/dev/null || echo "unknown")
-echo "📊 Archive size: ${ZIP_SIZE}"
-
-# Show directory structure
-echo "📁 Dist directory contents:"
-ls -la dist/
-echo "📁 Archives:"
-ls -la dist/archives/ 2>/dev/null || echo "   (empty)"
-echo "📁 Extracted files (first 10):"
-ls -la dist/extracted/ 2>/dev/null | head -10 || echo "   (empty)"
+# If this script started the CLI container, remove it unless KEEP_CLI is set
+if [ "${STARTED_CLI:-0}" = "1" ] && [ "${KEEP_CLI:-0}" != "1" ]; then
+	echo -e "${BLUE}🧹 Bringing down compose stack started for the build...${NC}"
+	docker compose down cli --remove-orphans >/dev/null 2>&1 || true
+	docker compose down --remove-orphans >/dev/null 2>&1 || true
+fi
