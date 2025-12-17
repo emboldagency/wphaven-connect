@@ -33,3 +33,7 @@ README.md
 tests
 Thumbs.db
 wp-cli.local.yml
+
+# Explicitly include vendor directory (required for plugin functionality)
+!vendor
+!vendor/**
