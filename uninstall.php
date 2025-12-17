@@ -4,7 +4,10 @@
  * WP Haven Connect - Uninstall Hook
  *
  * This file is called when the plugin is deleted via the WordPress dashboard.
- * It handles complete cleanup of all plugin data and files.
+ * It handles cleanup of MU-plugin files created by this plugin.
+ *
+ * Note: Plugin settings are preserved to allow for reinstallation without losing configuration.
+ * Users can manually reset settings using the "Reset Settings" button if desired.
  *
  * @see https://developer.wordpress.org/plugins/plugin-basics/uninstall-methods/
  */
@@ -15,7 +18,7 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 }
 
 // Load the autoloader
-$plugin_dir = dirname(__DIR__);
+$plugin_dir = __DIR__;
 if (file_exists($plugin_dir . '/vendor/autoload.php')) {
     require_once $plugin_dir . '/vendor/autoload.php';
 }
@@ -23,10 +26,9 @@ if (file_exists($plugin_dir . '/vendor/autoload.php')) {
 use WPHavenConnect\Utilities\MuPluginManager;
 
 // Clean up MU-plugin
-MuPluginManager::deleteMuPlugin();
-
-// Delete all plugin settings from wp_options
-MuPluginManager::deleteSettings();
+if (class_exists('WPHavenConnect\Utilities\MuPluginManager')) {
+    MuPluginManager::deleteMuPlugin();
+}
 
 // Log uninstall completion
-error_log('[WPHavenConnect] Plugin uninstalled and cleaned up');
+error_log('[WPHavenConnect] Plugin uninstalled and MU-plugin cleaned up');
