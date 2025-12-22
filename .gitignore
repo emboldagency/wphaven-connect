@@ -7,8 +7,7 @@ dist/extracted/*
 .idea/
 
 # Composer dependencies (install with: composer install)
-vendor/
-composer.lock
+# Keep vendor and lock tracked for clone usability
 
 # PHPCS cache
 .phpcs.xml.cache

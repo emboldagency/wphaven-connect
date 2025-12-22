@@ -17,18 +17,20 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
-// Load the autoloader
-$plugin_dir = __DIR__;
-if (file_exists($plugin_dir . '/vendor/autoload.php')) {
-    require_once $plugin_dir . '/vendor/autoload.php';
+try {
+    // Load the autoloader
+    $plugin_dir = __DIR__;
+    if (file_exists($plugin_dir . '/vendor/autoload.php')) {
+        require_once $plugin_dir . '/vendor/autoload.php';
+    }
+
+    // Clean up MU-plugin
+    if (class_exists('\WPHavenConnect\Utilities\MuPluginManager')) {
+        \WPHavenConnect\Utilities\MuPluginManager::deleteMuPlugin();
+    }
+
+    // Log uninstall completion
+    error_log('[WPHavenConnect] Plugin uninstalled and MU-plugin cleaned up');
+} catch (\Throwable $e) {
+    error_log('[WPHavenConnect] Uninstall error: ' . $e->getMessage());
 }
-
-use WPHavenConnect\Utilities\MuPluginManager;
-
-// Clean up MU-plugin
-if (class_exists('WPHavenConnect\Utilities\MuPluginManager')) {
-    MuPluginManager::deleteMuPlugin();
-}
-
-// Log uninstall completion
-error_log('[WPHavenConnect] Plugin uninstalled and MU-plugin cleaned up');
