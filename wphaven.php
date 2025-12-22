@@ -88,11 +88,81 @@ function wphaven_connect_admin_notice()
 
 add_action('admin_notices', 'wphaven_connect_admin_notice');
 
+function wphaven_connect_get_filesystem()
+{
+	if (!function_exists('WP_Filesystem')) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+	$creds = WP_Filesystem();
+	global $wp_filesystem;
+	if (!$creds || !$wp_filesystem) {
+		return null;
+	}
+	return $wp_filesystem;
+}
+
+function wphaven_connect_cleanup_dev_files()
+{
+	$plugin_dir = __DIR__;
+	$distignore_file = $plugin_dir . '/.distignore';
+
+	if (!file_exists($distignore_file)) {
+		return;
+	}
+
+	$lines = file($distignore_file, FILE_IGNORE_NEW_LINES);
+	if (!$lines) {
+		return;
+	}
+
+	$fs = wphaven_connect_get_filesystem();
+	if (!$fs) {
+		return;
+	}
+
+	foreach ($lines as $line) {
+		$line = trim($line);
+		if ($line === '' || $line[0] === '#') {
+			continue;
+		}
+		if ($line[0] === '!') {
+			continue; // keep vendor inclusions
+		}
+
+		$pattern = rtrim($line, '/');
+		$glob_pattern = $plugin_dir . '/' . $pattern;
+		$targets = [];
+		if (strpbrk($pattern, '*?[') !== false) {
+			$targets = glob($glob_pattern, GLOB_BRACE) ?: [];
+		} else {
+			$targets = [$glob_pattern];
+		}
+
+		foreach ($targets as $path) {
+			if (is_dir($path)) {
+				$fs->delete($path, true, 'd');
+			} elseif (is_file($path)) {
+				$fs->delete($path, false, 'f');
+			}
+		}
+	}
+}
+
 register_activation_hook(__FILE__, function () {
 	if (!wphaven_connect_has_vendor()) {
 		wphaven_connect_try_composer_install();
 	}
+	wphaven_connect_cleanup_dev_files();
 });
+
+// Also run cleanup on first admin_init after activation as a fallback
+add_action('admin_init', function () {
+	$cleanup_done = get_transient('wphaven_cleanup_done');
+	if (!$cleanup_done) {
+		wphaven_connect_cleanup_dev_files();
+		set_transient('wphaven_cleanup_done', 1, DAY_IN_SECONDS);
+	}
+}, 1);
 
 if (defined('WP_CLI') && WP_CLI) {
 	WP_CLI::add_command('wphaven install-deps', function () {
@@ -106,6 +176,11 @@ if (defined('WP_CLI') && WP_CLI) {
 		} else {
 			WP_CLI::error('Failed to install dependencies. Ensure Composer is available and shell functions are enabled.');
 		}
+	});
+
+	WP_CLI::add_command('wphaven cleanup-dev', function () {
+		wphaven_connect_cleanup_dev_files();
+		WP_CLI::success('Development files cleaned up.');
 	});
 }
 
