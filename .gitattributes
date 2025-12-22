@@ -1,0 +1,27 @@
+# Exclude development-only files from git archives
+/tests/ export-ignore
+/tests/** export-ignore
+/.github/ export-ignore
+/.github/** export-ignore
+/.gitlab-ci.yml export-ignore
+/.travis.yml export-ignore
+/phpunit.xml export-ignore
+/phpcs.xml export-ignore
+/phpcs.xml.dist export-ignore
+/build/ export-ignore
+/docs/ export-ignore
+/.vscode/ export-ignore
+/.editorconfig export-ignore
+/.gitattributes export-ignore
+/.distignore export-ignore
+/.gitignore export-ignore
+/.deploy export-ignore
+/docker/ export-ignore
+/docker-compose.yml export-ignore
+/README.md export-ignore
+/scripts/ export-ignore
+/node_modules/ export-ignore
+/package.json export-ignore
+/composer.json export-ignore
+/composer.lock export-ignore
+/dist/ export-ignore
