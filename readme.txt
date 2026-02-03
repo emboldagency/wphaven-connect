@@ -16,7 +16,7 @@ Provides functionality to connect to the remote maintenance and management platf
 
 = 0.20.0 =
 * Add settings link to plugin list row.
-
+* Allow setting 404 page for admin slug redirection.
 
 = 0.19.3 =
 * Allow installation via git clone again by re-including vendor in git.

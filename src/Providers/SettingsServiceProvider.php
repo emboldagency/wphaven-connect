@@ -120,6 +120,7 @@ class SettingsServiceProvider
         add_settings_field('elevated_emails', __('Elevated admin emails', 'wphaven-connect'), [$this, 'renderElevatedEmailsField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('wphaven_api_base', __('WP Haven API Base', 'wphaven-connect'), [$this, 'renderApiBaseField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('admin_login_slug', __('Custom admin login slug', 'wphaven-connect'), [$this, 'renderAdminLoginSlugField'], 'wphaven-connect', 'wphaven_connect_general');
+        add_settings_field('wphaven_404_redirect', __('Blocked Admin Redirect', 'wphaven-connect'), [$this, 'render404RedirectField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('show_environment_indicator', __('Show environment badge', 'wphaven-connect'), [$this, 'renderCheckboxField'], 'wphaven-connect', 'wphaven_connect_general', ['key' => 'show_environment_indicator', 'desc' => __('Display the current environment (Development, Staging, Production) as a badge in the admin bar.', 'wphaven-connect'), 'const' => 'WPH_SHOW_ENVIRONMENT_INDICATOR']);
 
         // --- SECTION: Mail Configuration ---
@@ -154,6 +155,16 @@ class SettingsServiceProvider
 
         if (isset($input['admin_login_slug'])) {
             $output['admin_login_slug'] = sanitize_text_field($input['admin_login_slug']);
+        }
+
+        if (isset($input['wphaven_404_redirect'])) {
+            $path = sanitize_text_field($input['wphaven_404_redirect']);
+            // Ensure single leading slash and no trailing slash
+            $path = '/' . trim($path, '/');
+            if ($path === '/') {
+                $path = ''; // Empty if just slash
+            }
+            $output['wphaven_404_redirect'] = $path;
         }
 
         // --- Environment Indicator ---
@@ -194,6 +205,7 @@ class SettingsServiceProvider
         return wp_parse_args(get_option(self::OPTION_NAME, []), [
             // Defaults
             'admin_login_slug' => '',
+            'wphaven_404_redirect' => '',
             'elevated_emails' => [],
             'wphaven_api_base' => '',
             'show_environment_indicator' => true,
@@ -452,6 +464,20 @@ class SettingsServiceProvider
             $extra
         );
         echo '<p class="description">' . esc_html__('Replaces the default login URL (/wp-login.php) with a custom slug to hide it from automated attacks.', 'wphaven-connect') . '</p>';
+    }
+
+    public function render404RedirectField()
+    {
+        $opts = $this->getOptions();
+        $name = self::OPTION_NAME . '[wphaven_404_redirect]';
+        $value = $opts['wphaven_404_redirect'] ?? '';
+
+        echo sprintf(
+            '<input type="text" name="%s" value="%s" class="regular-text" placeholder="/404">',
+            esc_attr($name),
+            esc_attr($value)
+        );
+        echo '<p class="description">' . esc_html__('Where visitors are redirected when attempting to access the default /wp-admin or /wp-login.php paths. Defaults to /404.', 'wphaven-connect') . '</p>';
     }
 
     public function renderElevatedEmailsField()
