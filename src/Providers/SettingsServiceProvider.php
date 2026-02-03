@@ -26,6 +26,8 @@ class SettingsServiceProvider
         // Add settings link to plugins page
         add_filter('plugin_action_links_' . plugin_basename(dirname(__DIR__, 2) . '/wphaven.php'), [$this, 'addPluginActionLinks']);
 
+        // Conflict check
+        add_action('admin_notices', [$this, 'checkConflicts']);
     }
 
     public function addPluginActionLinks($links)
@@ -33,6 +35,13 @@ class SettingsServiceProvider
         $settings_link = '<a href="' . admin_url('options-general.php?page=wphaven-connect') . '">' . __('Settings', 'wphaven-connect') . '</a>';
         array_unshift($links, $settings_link);
         return $links;
+    }
+
+    public function checkConflicts()
+    {
+        if (is_plugin_active('wps-hide-login/wps-hide-login.php')) {
+            echo '<div class="notice notice-warning"><p>' . esc_html__('Warning: "WPS Hide Login" is active and may conflict with WP Haven Connect\'s custom login feature. Please deactivate one of them.', 'wphaven-connect') . '</p></div>';
+        }
     }
 
     public function handleReset()
@@ -258,6 +267,19 @@ class SettingsServiceProvider
             <h1>
                 <?php echo esc_html__('WP Haven Connect: Development Settings', 'wphaven-connect'); ?>
             </h1>
+
+            <?php
+            if (is_plugin_active('wps-hide-login/wps-hide-login.php')) {
+                ?>
+                <div class="notice notice-warning inline">
+                    <p>
+                        <strong><?php echo esc_html__('Conflict Detected:', 'wphaven-connect'); ?></strong>
+                        <?php echo esc_html__('"WPS Hide Login" is currently active. This plugin provides similar functionality to WP Haven Connect\'s "Custom admin login slug" and may cause issues if both are used. We recommend deactivating WPS Hide Login.', 'wphaven-connect'); ?>
+                    </p>
+                </div>
+                <?php
+            }
+            ?>
 
             <style>
                 .wph-const-override {
