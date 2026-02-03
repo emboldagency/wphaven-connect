@@ -14,6 +14,10 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.20.0 =
+* Add settings link to plugin list row.
+
+
 = 0.19.3 =
 * Allow installation via git clone again by re-including vendor in git.
 * Add checks if required plugin folders are missing.

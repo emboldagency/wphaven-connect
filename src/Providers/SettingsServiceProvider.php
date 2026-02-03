@@ -22,6 +22,17 @@ class SettingsServiceProvider
         add_action('admin_post_wphaven_connect_send_test_email', [$this, 'handleSendTestEmail']);
         // Enqueue settings page assets
         add_action('admin_enqueue_scripts', [$this, 'enqueueSettingsAssets']);
+
+        // Add settings link to plugins page
+        add_filter('plugin_action_links_' . plugin_basename(dirname(__DIR__, 2) . '/wphaven.php'), [$this, 'addPluginActionLinks']);
+
+    }
+
+    public function addPluginActionLinks($links)
+    {
+        $settings_link = '<a href="' . admin_url('options-general.php?page=wphaven-connect') . '">' . __('Settings', 'wphaven-connect') . '</a>';
+        array_unshift($links, $settings_link);
+        return $links;
     }
 
     public function handleReset()
