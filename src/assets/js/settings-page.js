@@ -85,10 +85,10 @@ document.addEventListener("DOMContentLoaded", function () {
    * when the suppress notices checkbox changes.
    */
   function setupSuppressNoticesToggle() {
-    const checkbox = document.getElementById(
-      "wph_suppress_notices_checkbox"
+    const checkbox = document.getElementById("wph_suppress_notices_checkbox");
+    const fieldRow = document.querySelector(
+      ".wph-suppress-notice-extra-strings-row",
     );
-    const fieldRow = document.querySelector(".wph-suppress-notice-extra-strings-row");
 
     if (!checkbox || !fieldRow) {
       return;
@@ -100,4 +100,37 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   setupSuppressNoticesToggle();
+
+  /**
+   * Toggle disabled state of 404 redirect field based on admin login slug value.
+   */
+  function setupAdminSlugToggle() {
+    const slugInput = document.querySelector(
+      'input[name="wphaven_connect_options[admin_login_slug]"]',
+    );
+    const redirectInput = document.querySelector(
+      'input[name="wphaven_connect_options[wphaven_404_redirect]"]',
+    );
+
+    if (!slugInput || !redirectInput) {
+      return;
+    }
+
+    function updateState() {
+      const isDisabled = slugInput.value.trim() === "";
+      redirectInput.disabled = isDisabled;
+
+      // Optional: Dim the wrapper to visually indicate disabled state (if wrapper exists)
+      // Since WP wraps fields in <td>, we can style the input itself or its nearby description if desired.
+      // WordPress automatically styles disabled inputs, so explicit opacity isn't strictly necessary.
+    }
+
+    slugInput.addEventListener("input", updateState);
+    slugInput.addEventListener("change", updateState);
+
+    // Initial state
+    updateState();
+  }
+
+  setupAdminSlugToggle();
 });

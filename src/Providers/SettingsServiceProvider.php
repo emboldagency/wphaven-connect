@@ -163,17 +163,13 @@ class SettingsServiceProvider
         }
 
         if (isset($input['admin_login_slug'])) {
-            $output['admin_login_slug'] = sanitize_text_field($input['admin_login_slug']);
+            $output['admin_login_slug'] = trim(sanitize_text_field($input['admin_login_slug']), '/');
         }
 
         if (isset($input['wphaven_404_redirect'])) {
             $path = sanitize_text_field($input['wphaven_404_redirect']);
-            // Ensure single leading slash and no trailing slash
-            $path = '/' . trim($path, '/');
-            if ($path === '/') {
-                $path = ''; // Empty if just slash
-            }
-            $output['wphaven_404_redirect'] = $path;
+            // Normalize: remove leading/trailing slashes
+            $output['wphaven_404_redirect'] = trim($path, '/');
         }
 
         // --- Environment Indicator ---
@@ -495,11 +491,11 @@ class SettingsServiceProvider
         $value = $opts['wphaven_404_redirect'] ?? '';
 
         echo sprintf(
-            '<input type="text" name="%s" value="%s" class="regular-text" placeholder="/404">',
+            '<input type="text" name="%s" value="%s" class="regular-text" placeholder="404">',
             esc_attr($name),
             esc_attr($value)
         );
-        echo '<p class="description">' . esc_html__('Where visitors are redirected when attempting to access the default /wp-admin or /wp-login.php paths. Defaults to /404.', 'wphaven-connect') . '</p>';
+        echo '<p class="description">' . esc_html__('Where visitors are redirected when attempting to access the default /wp-admin or /wp-login.php paths. Defaults to 404.', 'wphaven-connect') . '</p>';
     }
 
     public function renderElevatedEmailsField()
