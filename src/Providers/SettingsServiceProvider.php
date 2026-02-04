@@ -39,9 +39,33 @@ class SettingsServiceProvider
 
     public function checkConflicts()
     {
-        if (is_plugin_active('wps-hide-login/wps-hide-login.php')) {
-            echo '<div class="notice notice-warning"><p>' . esc_html__('Warning: "WPS Hide Login" is active and may conflict with WP Haven Connect\'s custom login feature. Please deactivate one of them.', 'wphaven-connect') . '</p></div>';
+        if (!current_user_can('manage_options')) {
+            return;
         }
+
+        if (!is_plugin_active('wps-hide-login/wps-hide-login.php')) {
+            return;
+        }
+
+        $options = $this->getOptions();
+        $slug = $options['admin_login_slug'];
+
+        if (defined('WPH_ADMIN_LOGIN_SLUG')) {
+            $slug = constant('WPH_ADMIN_LOGIN_SLUG');
+        }
+
+        if (empty($slug)) {
+            return;
+        }
+
+        ?>
+        <div class="notice notice-warning is-dismissible">
+            <p>
+                <strong><?php esc_html_e('WP Haven Connect:', 'wphaven-connect'); ?></strong>
+                <?php esc_html_e('Warning: "WPS Hide Login" is active and may conflict with WP Haven Connect\'s custom login feature. Please deactivate one of them.', 'wphaven-connect'); ?>
+            </p>
+        </div>
+        <?php
     }
 
     public function handleReset()
