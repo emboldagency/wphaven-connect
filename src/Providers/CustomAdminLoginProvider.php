@@ -142,7 +142,10 @@ class CustomAdminLoginProvider
     private function force_404_redirect()
     {
         if (!headers_sent()) {
-            wp_safe_redirect(home_url('/404'));
+            $opts = get_option('wphaven_connect_options', []);
+            $redirect_path = !empty($opts['wphaven_404_redirect']) ? $opts['wphaven_404_redirect'] : '404';
+            
+            wp_safe_redirect(home_url($redirect_path));
             exit;
         }
     }
@@ -198,7 +201,9 @@ class CustomAdminLoginProvider
                     }
 
                     // Force redirect to a known non-existent page to trigger theme 404
-                    return home_url('/404');
+                    $opts = get_option('wphaven_connect_options', []);
+                    $redirect_path = !empty($opts['wphaven_404_redirect']) ? $opts['wphaven_404_redirect'] : '404';
+                    return home_url($redirect_path);
                 }
                 return $location;
             }, 1, 2);

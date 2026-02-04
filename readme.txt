@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.19.3
+Stable tag: 0.20.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,11 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.20.0 =
+* Add settings link to plugin list row.
+* Allow setting 404 page for admin slug redirection.
+* Plugin conflict detection - warn when WPS Hide Login plugin is active.
 
 = 0.19.3 =
 * Allow installation via git clone again by re-including vendor in git.
