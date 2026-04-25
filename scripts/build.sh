@@ -30,9 +30,14 @@ echo -e "${BLUE}🔧 Starting Build Process for ${PLUGIN_SLUG}...${NC}"
 # Version Synchronization
 # ==============================================================================
 
-# Get the latest local Git tag (e.g., 0.15.1)
-# 2>/dev/null suppresses errors if no tags exist
-LATEST_TAG=$(git tag --list --sort=-version:refname | head -n 1)
+# Resolve the tag to sync against. CI can pass GIT_TAG explicitly (e.g. GITHUB_REF_NAME)
+# to avoid relying on the checkout having fetched tags.
+if [ -n "$GIT_TAG" ]; then
+	LATEST_TAG="$GIT_TAG"
+	echo -e "${BLUE}ℹ️  Using provided GIT_TAG: ${LATEST_TAG}${NC}"
+else
+	LATEST_TAG=$(git tag --list --sort=-version:refname 2>/dev/null | head -n 1)
+fi
 
 if [ -z "$LATEST_TAG" ]; then
 	echo -e "${YELLOW}⚠️  No Git tags found. Skipping version sync.${NC}"
@@ -54,30 +59,45 @@ else
 		echo -e "${YELLOW}🔧 Development mode: Skipping version check.${NC}"
 		VERSION="$CURRENT_PLUGIN_VERSION"
 	elif [ "$1" == "--fix" ]; then
-		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ] || [ "$CURRENT_README_VERSION" != "$LATEST_TAG" ]; then
+		NEEDS_UPDATE=0
+		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ] \
+			|| [ "$CURRENT_README_VERSION" != "$LATEST_TAG" ]; then
+			NEEDS_UPDATE=1
+		fi
+		if grep -q "^= Unreleased =$" "$README_FILE"; then
+			NEEDS_UPDATE=1
+		fi
+
+		if [ "$NEEDS_UPDATE" = "1" ]; then
 			echo -e "${BLUE}📦 Updating file versions to match tag: ${LATEST_TAG}...${NC}"
 
-			# Update Main Plugin File
+			# Main plugin header
 			sed -i.bak -E "s/(Version: *)[0-9A-Za-z.-]+/\1$LATEST_TAG/" "$MAIN_FILE"
 
-			# Update Readme
+			# readme.txt Stable tag
 			sed -i.bak -E "s/(Stable tag: *)[0-9A-Za-z.-]+/\1$LATEST_TAG/" "$README_FILE"
+
+			# readme.txt changelog: promote "= Unreleased =" to the release heading
+			sed -i.bak -E "s/^= Unreleased =$/= $LATEST_TAG =/" "$README_FILE"
 
 			# Clean up sed backups (macOS/BSD vs GNU compatibility)
 			rm -f "$MAIN_FILE.bak" "$README_FILE.bak"
 			echo -e "${GREEN}✅ Files updated.${NC}"
+		else
+			echo -e "${GREEN}✅ Versions already match (${LATEST_TAG}).${NC}"
 		fi
 	else
 		# Just Check - allow base version match for prerelease tags
 		if [ "$CURRENT_PLUGIN_VERSION" != "$LATEST_TAG" ] && [ "$CURRENT_PLUGIN_VERSION" != "$TAG_BASE_VERSION" ]; then
 			echo -e "${RED}❌ Version Mismatch!${NC}"
 			echo "   Git Tag: $LATEST_TAG"
-			echo "   File:    $CURRENT_PLUGIN_VERSION"
+			echo "   $MAIN_FILE:   $CURRENT_PLUGIN_VERSION"
+			echo "   $README_FILE: $CURRENT_README_VERSION"
 			echo "   Run 'bash scripts/build.sh --fix' to sync them."
 			echo "   Or 'bash scripts/build.sh --dev' to skip version check for development."
 			exit 1
 		fi
-		
+
 		# Use file version for archive naming, but log what we're doing
 		if [ "$LATEST_TAG" != "$TAG_BASE_VERSION" ]; then
 			echo -e "${GREEN}✅ Prerelease tag detected ($LATEST_TAG) - using file version ($CURRENT_PLUGIN_VERSION) for build.${NC}"

@@ -23,21 +23,24 @@ Versions follow semantic versioning: `MAJOR.MINOR.PATCH` (e.g., `0.19.0`)
 
 ### Creating Releases
 
-1. **Update version in files** (or use build script to auto-fix):
+1. **Write changelog entries** under a `= Unreleased =` heading in `readme.txt` as you work. The build script will rename that heading to the release version during `--fix`.
+
+2. **Update version in files** (or use build script to auto-fix):
    ```bash
    bash scripts/build.sh --fix
    ```
    This updates:
    - Version in `wphaven.php` header
    - Stable tag in `readme.txt`
+   - Changelog heading: `= Unreleased =` → `= <tag> =` (if present)
 
-2. **Create a Git tag**:
+3. **Create a Git tag**:
    ```bash
    git tag 0.19.0
    git push origin 0.19.0
    ```
 
-3. **Create prerelease tags** (optional):
+4. **Create prerelease tags** (optional):
    ```bash
    git tag 0.19.0-pre
    git push origin 0.19.0-pre
@@ -100,7 +103,7 @@ bash scripts/build.sh --dev
 bash scripts/build.sh --fix
 ```
 
-**Auto-updates** `wphaven.php` and `readme.txt` to match Git tag.
+**Auto-updates** `wphaven.php` and `readme.txt` (Stable tag + changelog heading) to match the Git tag. In CI, set `GIT_TAG` instead of relying on the checkout having tags fetched.
 
 ## GitHub Actions Release Process
 
@@ -114,11 +117,9 @@ Releases are automatically triggered when you push a Git tag matching:
 1. ✅ Checkout code
 2. ✅ Set up PHP 8.3, Composer, WP-CLI
 3. ✅ Cache Composer dependencies
-4. ✅ Verify/sync versions from tag
-5. ✅ Install dist-archive WP-CLI command
-6. ✅ Install dependencies
-7. ✅ Build distribution
-8. ✅ Create GitHub Release with ZIP attached
+4. ✅ Install dist-archive WP-CLI command
+5. ✅ Run `build.sh --fix` with `GIT_TAG` from `github.ref_name` — syncs file versions, installs prod deps, builds the ZIP
+6. ✅ Create GitHub Release with ZIP attached
 
 ## Troubleshooting
 
@@ -159,8 +160,7 @@ bash scripts/build.sh  # Will auto-detect Docker
 ```
 wphaven-connect/
 ├── scripts/
-│   ├── build.sh              # Main build script
-│   └── sync-version-local.sh # Version sync utility
+│   └── build.sh              # Build script (also syncs versions via --fix)
 ├── docker/
 │   ├── Dockerfile.cli        # WP-CLI image
 │   ├── docker.env            # Environment config
