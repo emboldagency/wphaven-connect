@@ -28,7 +28,7 @@ class CustomAdminLoginProvider
         }
         do_action('wph_custom_login_init');
 
-        $slug = $this->get_custom_login_slug();
+        $slug = self::get_custom_login_slug();
 
         // If no slug is defined, disable the feature
         if (empty($slug)) {
@@ -210,7 +210,7 @@ class CustomAdminLoginProvider
         }
     }
 
-    private function get_custom_login_slug()
+    public static function get_custom_login_slug()
     {
         // Check Constant (Highest priority)
         if (defined('WPH_ADMIN_LOGIN_SLUG')) {

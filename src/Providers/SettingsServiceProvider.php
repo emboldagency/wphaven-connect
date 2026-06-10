@@ -2,6 +2,10 @@
 
 namespace WPHavenConnect\Providers;
 
+use WP_Error;
+use WP_REST_Request;
+use WP_REST_Response;
+use WP_REST_Server;
 use WPHavenConnect\Utilities\ElevatedUsers;
 
 class SettingsServiceProvider
@@ -10,6 +14,9 @@ class SettingsServiceProvider
 
     public function register()
     {
+        // REST requests are not is_admin(), so this must hook before the guard below
+        add_action('rest_api_init', [$this, 'registerLoginSlugEndpoint']);
+
         if (!is_admin()) {
             return;
         }
@@ -28,6 +35,53 @@ class SettingsServiceProvider
 
         // Conflict check
         add_action('admin_notices', [$this, 'checkConflicts']);
+    }
+
+    public function registerLoginSlugEndpoint()
+    {
+        register_rest_route('wphaven-connect/v1', '/login-slug', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'getLoginSlug'],
+            // Secured by a shared-secret header rather than the IP allowlist:
+            // the browser extension calls this pre-auth from arbitrary networks,
+            // and the secret keeps the hidden login slug from being probeable.
+            'permission_callback' => [$this, 'loginSlugPermissionCheck'],
+        ]);
+    }
+
+    public function getLoginSlug()
+    {
+        $slug = CustomAdminLoginProvider::get_custom_login_slug();
+
+        return new WP_REST_Response(['slug' => $slug !== '' ? $slug : null], 200);
+    }
+
+    public function loginSlugPermissionCheck(WP_REST_Request $request)
+    {
+        $secret = $this->getExtensionApiKey();
+
+        if (empty($secret)) {
+            return new WP_Error('forbidden', 'No extension API key is configured.', ['status' => 403]);
+        }
+
+        $provided = (string) $request->get_header('X-WPH-Extension-Key');
+
+        if (empty($provided) || !hash_equals($secret, $provided)) {
+            return new WP_Error('forbidden', 'Invalid extension API key.', ['status' => 403]);
+        }
+
+        return true;
+    }
+
+    private function getExtensionApiKey()
+    {
+        if (defined('WPH_EXTENSION_API_KEY')) {
+            return (string) constant('WPH_EXTENSION_API_KEY');
+        }
+
+        $opts = $this->getOptions();
+
+        return (string) $opts['extension_api_key'];
     }
 
     public function addPluginActionLinks($links)
@@ -153,6 +207,7 @@ class SettingsServiceProvider
         add_settings_field('elevated_emails', __('Elevated admin emails', 'wphaven-connect'), [$this, 'renderElevatedEmailsField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('wphaven_api_base', __('WP Haven API Base', 'wphaven-connect'), [$this, 'renderApiBaseField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('admin_login_slug', __('Custom admin login slug', 'wphaven-connect'), [$this, 'renderAdminLoginSlugField'], 'wphaven-connect', 'wphaven_connect_general');
+        add_settings_field('extension_api_key', __('Extension API key', 'wphaven-connect'), [$this, 'renderExtensionApiKeyField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('wphaven_404_redirect', __('Blocked Admin Redirect', 'wphaven-connect'), [$this, 'render404RedirectField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('show_environment_indicator', __('Show environment badge', 'wphaven-connect'), [$this, 'renderCheckboxField'], 'wphaven-connect', 'wphaven_connect_general', ['key' => 'show_environment_indicator', 'desc' => __('Display the current environment (Development, Staging, Production) as a badge in the admin bar.', 'wphaven-connect'), 'const' => 'WPH_SHOW_ENVIRONMENT_INDICATOR']);
 
@@ -188,6 +243,10 @@ class SettingsServiceProvider
 
         if (isset($input['admin_login_slug'])) {
             $output['admin_login_slug'] = trim(sanitize_text_field($input['admin_login_slug']), '/');
+        }
+
+        if (isset($input['extension_api_key'])) {
+            $output['extension_api_key'] = trim(sanitize_text_field($input['extension_api_key']));
         }
 
         if (isset($input['wphaven_404_redirect'])) {
@@ -234,6 +293,7 @@ class SettingsServiceProvider
         return wp_parse_args(get_option(self::OPTION_NAME, []), [
             // Defaults
             'admin_login_slug' => '',
+            'extension_api_key' => '',
             'wphaven_404_redirect' => '',
             'elevated_emails' => [],
             'wphaven_api_base' => '',
@@ -506,6 +566,25 @@ class SettingsServiceProvider
             $extra
         );
         echo '<p class="description">' . esc_html__('Replaces the default login URL (/wp-login.php) with a custom slug to hide it from automated attacks.', 'wphaven-connect') . '</p>';
+    }
+
+    public function renderExtensionApiKeyField()
+    {
+        $opts = $this->getOptions();
+        $name = self::OPTION_NAME . '[extension_api_key]';
+        $is_const = defined('WPH_EXTENSION_API_KEY');
+        $value = $is_const ? constant('WPH_EXTENSION_API_KEY') : $opts['extension_api_key'];
+        $readonly = $is_const ? 'readonly' : '';
+        $extra = $is_const ? ' ' . $this->getConstantOverrideHtml('WPH_EXTENSION_API_KEY') : '';
+
+        echo sprintf(
+            '<input type="text" name="%s" value="%s" class="regular-text" %s>%s',
+            esc_attr($name),
+            esc_attr($value),
+            $readonly,
+            $extra
+        );
+        echo '<p class="description">' . esc_html__('Shared secret required by the WP Haven browser extension to look up the custom login slug. Leave empty to disable the lookup endpoint.', 'wphaven-connect') . '</p>';
     }
 
     public function render404RedirectField()
