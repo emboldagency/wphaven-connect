@@ -1,7 +1,7 @@
 # WPHaven Connect
 
-[![Build and Deploy](https://embold.net/api/github/badge/workflow-status.php?repo=wphaven-connect&workflow=release.yml)](https://github.com/emboldagency/wphaven-connect/actions/workflows/release.yml) <!--
--->![Semantic Versioning](https://embold.net/api/github/badge/semver.php?repo=wphaven-connect)
+[![Build and Deploy](https://github.com/emboldagency/wphaven-connect/actions/workflows/release.yml/badge.svg)](https://github.com/emboldagency/wphaven-connect/actions/workflows/release.yml) <!--
+-->[![Latest Release](https://img.shields.io/github/v/release/emboldagency/wphaven-connect)](https://github.com/emboldagency/wphaven-connect/releases)
 
 > **Note**: This is the development documentation. WordPress plugins use `readme.txt` for their official plugin
 > information and changelog, not this README.md file.
