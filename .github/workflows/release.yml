@@ -15,16 +15,29 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Set up PHP with Composer and WP-CLI
+      - name: Set up PHP with Composer
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          tools: composer, wp-cli
+          tools: composer
+          # Disable Composer's github-oauth. setup-php otherwise writes the
+          # Actions token (github.token, a ghs_ token) into Composer's global
+          # config, which Composer 2.10 rejects as "invalid characters",
+          # breaking both `composer install` and `wp package install`. Our
+          # packages are public, so no auth is needed.
+          github-token: ''
+
+      - name: Set up WP-CLI
+        run: |
+          curl -fsSL -o wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+          wp --info
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -40,7 +53,16 @@ jobs:
       - name: Build distribution archive
         env:
           GIT_TAG: ${{ github.ref_name }}
-        run: bash scripts/build.sh --fix
+        run: |
+          # --fix rewrites file versions to match the release tag, so it only
+          # makes sense on a tag push (github.ref_name is a clean semver there).
+          # On branch/manual runs the ref may contain a "/", which breaks the
+          # version sed, so build without rewriting versions instead.
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            bash scripts/build.sh --fix
+          else
+            bash scripts/build.sh --dev
+          fi
 
       - name: Release
         uses: softprops/action-gh-release@v2
