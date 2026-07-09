@@ -17,11 +17,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up PHP with Composer and WP-CLI
+      - name: Set up PHP with Composer
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          tools: composer, wp-cli
+          tools: composer
+
+      - name: Set up WP-CLI
+        run: |
+          curl -fsSL -o wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+          wp --info
 
       - name: Cache Composer dependencies
         uses: actions/cache@v3
