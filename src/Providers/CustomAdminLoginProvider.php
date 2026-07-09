@@ -86,6 +86,13 @@ class CustomAdminLoginProvider
             return;
         }
 
+        // On internal Embold dev domains, leave the default /wp-admin and
+        // wp-login.php working so we don't have to remember per-site custom URLs.
+        // The custom slug above still serves, so both paths work here.
+        if ($this->is_login_obfuscation_bypassed()) {
+            return;
+        }
+
         // Check if accessing wp-login.php direct - redirect to 404
         if ($this->is_wp_login_request($path)) {
             // Allow ALL reset actions to pass through - both initial form and key verification
@@ -166,6 +173,11 @@ class CustomAdminLoginProvider
      */
     public function early_admin_block()
     {
+        // Skip all admin blocking on internal Embold dev domains.
+        if ($this->is_login_obfuscation_bypassed()) {
+            return;
+        }
+
         $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         $path = parse_url($request_uri, PHP_URL_PATH);
 
@@ -208,6 +220,32 @@ class CustomAdminLoginProvider
                 return $location;
             }, 1, 2);
         }
+    }
+
+    /**
+     * Determine whether login obfuscation should be bypassed for this request.
+     *
+     * On internal Embold dev hosts (embold.dev or any subdomain of it)
+     * we leave the default /wp-admin and wp-login.php URLs working so team members
+     * don't have to remember a custom login slug for every site.
+     *
+     * Can be overridden with the WPH_DISABLE_LOGIN_BYPASS constant (set to true
+     * to force obfuscation even on embold.dev), or filtered via
+     * 'wph_login_obfuscation_bypassed'.
+     */
+    private function is_login_obfuscation_bypassed()
+    {
+        if (defined('WPH_DISABLE_LOGIN_BYPASS') && constant('WPH_DISABLE_LOGIN_BYPASS')) {
+            $bypassed = false;
+        } else {
+            // Strip any port, then match embold.dev itself or any subdomain of it
+            // (e.g. webapp--adhealthpolicylab--xan.embold.dev) — exact suffix only,
+            // so lookalikes like embold.dev.evil.com do NOT match.
+            $host = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
+            $bypassed = (bool) preg_match('/(^|\.)embold\.dev$/', $host);
+        }
+
+        return (bool) apply_filters('wph_login_obfuscation_bypassed', $bypassed);
     }
 
     private function get_custom_login_slug()

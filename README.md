@@ -11,7 +11,7 @@ WordPress plugin that provides functionality to connect to the remote maintenanc
 ## Features
 
 - **Development Mail Control**: Block or redirect emails in non-production environments with SMTP override support
-- **Custom Admin Login URL**: Hide default WordPress login URLs (wp-admin, wp-login.php) with custom slug
+- **Custom Admin Login URL**: Hide default WordPress login URLs (wp-admin, wp-login.php) with custom slug (automatically bypassed on `embold.dev` and its subdomains so `/wp-admin` keeps working on dev)
 - **Error Monitoring**: Centralized error handling and reporting to WP Haven platform
 - **Debug Notice Suppression**: Automatically suppress textdomain and other development notices
 - **Magic Login Links**: Generate secure one-time login URLs via WP-CLI for easier site access
@@ -43,6 +43,7 @@ Configuration is available via:
    - `DISABLE_MAIL`: Block all mail when true (legacy, prefer mail_mode settings)
    - `EMBOLD_SUPPRESS_LOGS`: Suppress debug notices when true
    - `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug
+   - `WPH_DISABLE_LOGIN_BYPASS`: Set to `true` to force login obfuscation even on `embold.dev` hosts
    - `WPH_SHOW_ENVIRONMENT_INDICATOR`: Show/hide environment indicator badge in admin bar
    - `WPHAVEN_API_BASE`: WP Haven API base URL
    - `EMBOLD_ALLOW_SVG`: Enable/disable SVG uploads (if Embold Tweaks is also active)
@@ -57,6 +58,30 @@ define('ELEVATED_EMAILS', ['worf@embold.com', 'spock@embold.com']);
 define('EMBOLD_SUPPRESS_LOGS', true);
 define('WPH_ADMIN_LOGIN_SLUG', 'secret-login');
 ```
+
+### Custom Admin Login on Dev Domains
+
+When a custom login slug is configured, the default `/wp-admin` and `wp-login.php`
+URLs are hidden (unauthenticated requests are redirected to a 404). To avoid having
+to remember a per-site login slug across internal environments, this obfuscation is
+**automatically bypassed on `embold.dev` and any of its subdomains** (e.g.
+`webapp--adhealthpolicylab--xan.embold.dev`) — on those domains `/wp-admin` and
+`wp-login.php` behave like a stock WordPress install. The custom slug still resolves
+as well, so existing links keep working.
+
+To override this behavior:
+
+- Set `WPH_DISABLE_LOGIN_BYPASS` to `true` in `wp-config.php` to force obfuscation
+  even on an `embold.dev` host (useful for testing the real login flow).
+- Use the `wph_login_obfuscation_bypassed` filter to extend the bypass to other hosts
+  (e.g. `.test` or `localhost`):
+
+  ```php
+  add_filter('wph_login_obfuscation_bypassed', function ($bypassed) {
+      $host = $_SERVER['HTTP_HOST'] ?? '';
+      return $bypassed || str_contains($host, '.test');
+  });
+  ```
 
 ## Development Setup
 

@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.20.1
+Stable tag: 0.21.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.21.0 =
+* Automatically bypass custom admin login obfuscation on `embold.dev` dev domains so `/wp-admin` and `wp-login.php` keep working. Override with the `WPH_DISABLE_LOGIN_BYPASS` constant or `wph_login_obfuscation_bypassed` filter.
 
 = 0.20.1 =
 * Fix conflict detection to only show when the admin login slug is set, make styling consistent with other notices.
