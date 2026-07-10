@@ -5,6 +5,7 @@ dist/*
 dist/archives/*
 dist/extracted/*
 .idea/
+.vscode/settings.json
 
 # Composer dependencies (install with: composer install)
 # Keep vendor and lock tracked for clone usability
