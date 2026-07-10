@@ -125,6 +125,11 @@ composer install --no-dev --prefer-dist --optimize-autoloader --quiet
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/${PLUGIN_SLUG}"*.zip 2>/dev/null || true
 
+# Clean any prior extracted distribution BEFORE archiving. dist-archive runs
+# from the plugin root, so a stale dist/extracted from a previous build would
+# otherwise get folded into the new zip (compounding on every run).
+find "dist/extracted" -mindepth 1 -delete 2>/dev/null || true
+
 # Helper function to run wp dist-archive
 run_dist_archive() {
 	local cmd_prefix="$1" # e.g., "docker compose exec -T cli" or ""
