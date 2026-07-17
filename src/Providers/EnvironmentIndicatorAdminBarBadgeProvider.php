@@ -3,7 +3,6 @@
 namespace WPHavenConnect\Providers;
 
 use WPHavenConnect\Utilities\Environment;
-use WPHavenConnect\Utilities\ElevatedUsers;
 
 // TODO: Build feature flag system to enable/disable this feature.
 // use Automattic\WooCommerce\Utilities\FeaturesUtil;
@@ -54,11 +53,21 @@ class EnvironmentIndicatorAdminBarBadgeProvider
      */
     public function init_hooks()
     {
-        // Only allow administrators who are also elevated users (regardless of custom list).
-        $is_elevated = ElevatedUsers::currentIsElevated();
-        $is_admin = current_user_can('administrator');
+        if (!is_user_logged_in()) {
+            return;
+        }
 
-        if (!is_user_logged_in() || !$is_admin || !$is_elevated) {
+        /**
+         * Capability required to see the environment indicator. Defaults to
+         * `edit_posts` so content editors -- not just WP Haven staff -- are warned
+         * when they are working on a non-production environment. Filterable to
+         * tighten (e.g. `manage_options`) or loosen per site.
+         *
+         * @param string $capability
+         */
+        $capability = apply_filters('wphaven_connect_environment_indicator_capability', 'edit_posts');
+
+        if (!current_user_can($capability)) {
             return;
         }
 

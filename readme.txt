@@ -18,6 +18,7 @@ Provides functionality to connect to the remote maintenance and management platf
 * Add a protected `/health` endpoint (and `wp wphaven health` command) reporting WP-Cron, email delivery, disk usage, PHP fatals, missed scheduled posts, and SSL certificate expiry.
 * Surface the same signals on the WordPress Site Health screen.
 * Allow authenticating the monitoring endpoints with a per-site bearer token in addition to the IP allowlist.
+* Show the admin-bar environment indicator to all content editors, not just WP Haven staff, so non-production is obvious to anyone editing.
 
 = 0.21.1 =
 * Maintenance release: repair the automated build/release pipeline so distribution archives publish correctly. No functional changes to the plugin.
