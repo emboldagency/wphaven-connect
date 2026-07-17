@@ -14,6 +14,11 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= Unreleased =
+* Add a protected `/health` endpoint (and `wp wphaven health` command) reporting WP-Cron, email delivery, disk usage, PHP fatals, missed scheduled posts, and SSL certificate expiry.
+* Surface the same signals on the WordPress Site Health screen.
+* Allow authenticating the monitoring endpoints with a per-site bearer token in addition to the IP allowlist.
+
 = 0.21.1 =
 * Maintenance release: repair the automated build/release pipeline so distribution archives publish correctly. No functional changes to the plugin.
 
