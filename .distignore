@@ -34,6 +34,8 @@ tests
 Thumbs.db
 wp-cli.local.yml
 
-# Explicitly include vendor directory (required for plugin functionality)
-!vendor
-!vendor/**
+# Explicitly include vendor directory (required for plugin functionality).
+# Anchored to root so it only re-includes the top-level vendor, not any nested
+# vendor dirs (e.g. inside an otherwise-excluded dist/extracted).
+!/vendor
+!/vendor/**
