@@ -33,9 +33,9 @@ class DatabaseTransferServiceProvider
 
     const DEFAULT_CHUNK = 500;
 
-    const PUSH_PHRASE = 'Confirm I am pushing data to production';
+    const PUSH_PHRASE = 'I am pushing to production';
 
-    const PULL_PHRASE = 'Confirm I am overwriting this environment';
+    const PULL_PHRASE = 'I am pulling from production';
 
     public function register()
     {
