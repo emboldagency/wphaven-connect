@@ -83,9 +83,9 @@ class TransferClient
             return new WP_Error('wphaven_no_production_url', __('No Production URL is configured.', 'wphaven-connect'), ['status' => 400]);
         }
 
-        $secret = TransferSecret::get();
+        $secret = ConnectionSecret::get();
         if ($secret === null) {
-            return new WP_Error('wphaven_no_secret', __('No content-transfer secret is configured.', 'wphaven-connect'), ['status' => 400]);
+            return new WP_Error('wphaven_no_secret', __('No environment connection secret is configured.', 'wphaven-connect'), ['status' => 400]);
         }
 
         $response = wp_remote_post($base . self::REST_BASE . $path, [

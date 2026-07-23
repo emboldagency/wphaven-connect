@@ -3,22 +3,24 @@
 namespace WPHavenConnect\ContentTransfer;
 
 /**
- * Central access point for the dedicated content-transfer shared secret.
+ * The environment connection secret: a shared key that must be identical across
+ * every environment of a client site (development, staging, maintenance,
+ * production) so one environment can authenticate to another.
  *
- * This secret is intentionally separate from the WPHaven per-site bearer token
- * (`wphaven_connect_secret`): it must be identical across every environment of a
- * single client site (development, staging, maintenance, production) so that one
- * environment can authenticate to another. It is synced manually by the agency.
+ * It is intentionally separate from the WPHaven per-site bearer token
+ * (`wphaven_connect_secret`) and is named generically so it can authenticate
+ * future cross-environment features beyond content transfer. It is synced
+ * manually by the agency: copy/paste the same value into every environment.
  *
  * Resolution order mirrors the plugin's other "constant beats option" settings:
- * the WPHAVEN_CONTENT_TRANSFER_SECRET constant wins, otherwise the
- * wphaven_content_transfer_secret option is used.
+ * the WPHAVEN_CONNECTION_SECRET constant wins, otherwise the
+ * wphaven_connection_secret option is used.
  */
-class TransferSecret
+class ConnectionSecret
 {
-    const OPTION_NAME = 'wphaven_content_transfer_secret';
+    const OPTION_NAME = 'wphaven_connection_secret';
 
-    const CONSTANT_NAME = 'WPHAVEN_CONTENT_TRANSFER_SECRET';
+    const CONSTANT_NAME = 'WPHAVEN_CONNECTION_SECRET';
 
     /**
      * The configured secret, or null when nothing has been set yet.
@@ -35,12 +37,25 @@ class TransferSecret
     }
 
     /**
-     * Whether the secret is locked by a constant (and therefore not regenerable
-     * from the settings UI).
+     * Whether the secret is locked by a constant (and therefore not editable or
+     * regenerable from the settings UI).
      */
     public static function isLocked(): bool
     {
         return defined(self::CONSTANT_NAME) && (bool) constant(self::CONSTANT_NAME);
+    }
+
+    /**
+     * Persist a supplied secret (e.g. one pasted in from another environment).
+     * No-op when locked by a constant.
+     */
+    public static function set(string $secret): void
+    {
+        if (self::isLocked()) {
+            return;
+        }
+
+        update_option(self::OPTION_NAME, $secret);
     }
 
     /**

@@ -38,7 +38,7 @@ Configuration is available via:
    - Elevated admin emails
    - WP Haven API base URL
    - Custom admin login slug
-   - Production URL and Content Transfer shared secret (with regenerate)
+   - Production URL and environment connection secret (editable, with regenerate)
 
 2. **Environment Constants** (in `wp-config.php`):
    - `ELEVATED_EMAILS`: Array of admin emails
@@ -49,7 +49,7 @@ Configuration is available via:
    - `WPH_SHOW_ENVIRONMENT_INDICATOR`: Show/hide environment indicator badge in admin bar
    - `WPHAVEN_API_BASE`: WP Haven API base URL
    - `WPHAVEN_PRODUCTION_URL`: Production site URL for Content Transfer (overrides the settings field)
-   - `WPHAVEN_CONTENT_TRANSFER_SECRET`: Shared Content Transfer secret; when defined it locks the settings field and disables regeneration. Must be identical on every environment
+   - `WPHAVEN_CONNECTION_SECRET`: Environment connection secret; when defined it locks the settings field and disables editing/regeneration. Must be identical on every environment
    - `EMBOLD_ALLOW_SVG`: Enable/disable SVG uploads (if Embold Tweaks is also active)
    - `EMBOLD_DISABLE_XMLRPC`: Enable/disable XML-RPC blocking (if Embold Tweaks is also active)
 

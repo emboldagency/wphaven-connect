@@ -2,8 +2,8 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\ContentTransfer\TransferClient;
-use WPHavenConnect\ContentTransfer\TransferSecret;
 use WPHavenConnect\Utilities\ElevatedUsers;
 
 class SettingsServiceProvider
@@ -22,8 +22,8 @@ class SettingsServiceProvider
 
         // Handle test email submissions from the settings page
         add_action('admin_post_wphaven_connect_send_test_email', [$this, 'handleSendTestEmail']);
-        // Handle content-transfer secret regeneration
-        add_action('admin_post_wphaven_regenerate_transfer_secret', [$this, 'handleRegenerateSecret']);
+        // Handle environment connection secret save/regenerate
+        add_action('admin_post_wphaven_save_connection_secret', [$this, 'handleConnectionSecret']);
         // Enqueue settings page assets
         add_action('admin_enqueue_scripts', [$this, 'enqueueSettingsAssets']);
 
@@ -179,12 +179,12 @@ class SettingsServiceProvider
             'wphaven_connect_mail'
         );
 
-        // --- SECTION: Content Transfer ---
+        // --- SECTION: Connection Settings ---
         add_settings_section(
             'wphaven_connect_connection',
-            __('Content Transfer', 'wphaven-connect'),
+            __('Connection Settings', 'wphaven-connect'),
             function () {
-                echo '<p>' . esc_html__('Move individual posts, pages and custom post types between this environment and production. The shared secret below must be identical on every environment for transfers to work.', 'wphaven-connect') . '</p>';
+                echo '<p>' . esc_html__('Connect this environment to others — for example, sending content to production. The environment connection secret below must be identical on every environment.', 'wphaven-connect') . '</p>';
             },
             'wphaven-connect'
         );
@@ -425,7 +425,7 @@ class SettingsServiceProvider
             </form>
 
             <hr style="margin-top: 40px; margin-bottom: 20px; border-color: #dcdcde;">
-            <?php $this->renderTransferSecretBlock(); ?>
+            <?php $this->renderConnectionSecretBlock(); ?>
 
             <hr style="margin-top: 40px; margin-bottom: 20px; border-color: #dcdcde;">
             <h2><?php echo esc_html__('Reset Settings', 'wphaven-connect'); ?></h2>
@@ -494,56 +494,70 @@ class SettingsServiceProvider
         exit;
     }
 
-    public function renderTransferSecretBlock()
+    public function renderConnectionSecretBlock()
     {
-        $secret = TransferSecret::get();
-        $is_locked = TransferSecret::isLocked();
+        $secret = ConnectionSecret::get();
+        $is_locked = ConnectionSecret::isLocked();
+        $notice = isset($_GET['wphaven_secret']) ? sanitize_key(wp_unslash($_GET['wphaven_secret'])) : '';
         ?>
-        <h2><?php echo esc_html__('Content Transfer Secret', 'wphaven-connect'); ?></h2>
+        <h2><?php echo esc_html__('Environment Connection Secret', 'wphaven-connect'); ?></h2>
         <p class="description" style="max-width: 640px;">
-            <?php echo esc_html__('This shared secret authenticates content transfers between environments. It must be identical on development, staging, maintenance and production. After regenerating, copy the new value to every other environment or transfers will be rejected.', 'wphaven-connect'); ?>
+            <?php echo esc_html__('This shared secret authenticates connections between environments (such as content transfers). It must be identical on development, staging, maintenance and production. Paste the same value into every environment, or generate one here and copy it to the others.', 'wphaven-connect'); ?>
         </p>
 
-        <?php if (isset($_GET['wphaven_secret']) && $_GET['wphaven_secret'] === 'regenerated'): ?>
+        <?php if ($notice === 'saved'): ?>
             <div class="notice notice-success is-dismissible">
-                <p><?php echo esc_html__('A new content-transfer secret was generated. Copy it to your other environments.', 'wphaven-connect'); ?></p>
+                <p><?php echo esc_html__('Connection secret saved.', 'wphaven-connect'); ?></p>
+            </div>
+        <?php elseif ($notice === 'regenerated'): ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php echo esc_html__('A new connection secret was generated. Copy it to your other environments.', 'wphaven-connect'); ?></p>
             </div>
         <?php endif; ?>
 
-        <table class="form-table" role="presentation">
-            <tr>
-                <th scope="row"><label for="wphaven_transfer_secret"><?php echo esc_html__('Current Secret', 'wphaven-connect'); ?></label></th>
-                <td>
-                    <input id="wphaven_transfer_secret" type="text" class="large-text code" readonly
-                        value="<?php echo esc_attr($secret !== null ? $secret : ''); ?>"
-                        placeholder="<?php echo esc_attr__('Not set yet — regenerate to create one.', 'wphaven-connect'); ?>"
-                        onclick="this.select();">
-                    <?php if ($is_locked): ?>
-                        <?php echo $this->getConstantOverrideHtml(TransferSecret::CONSTANT_NAME); ?>
-                    <?php endif; ?>
-                </td>
-            </tr>
-        </table>
-
-        <?php if (! $is_locked): ?>
+        <?php if ($is_locked): ?>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php echo esc_html__('Current Secret', 'wphaven-connect'); ?></th>
+                    <td>
+                        <input type="text" class="large-text code" readonly value="<?php echo esc_attr($secret !== null ? $secret : ''); ?>" onclick="this.select();">
+                        <?php echo $this->getConstantOverrideHtml(ConnectionSecret::CONSTANT_NAME); ?>
+                    </td>
+                </tr>
+            </table>
+        <?php else: ?>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('wphaven_regenerate_transfer_secret', 'wphaven_transfer_secret_nonce'); ?>
-                <input type="hidden" name="action" value="wphaven_regenerate_transfer_secret">
-                <?php
-                submit_button(
-                    $secret === null ? __('Generate Secret', 'wphaven-connect') : __('Regenerate Secret', 'wphaven-connect'),
-                    'secondary',
-                    'submit',
-                    true,
-                    $secret === null ? [] : ['onclick' => "return confirm('" . esc_js(__('Regenerating will break transfers until you copy the new secret to every environment. Continue?', 'wphaven-connect')) . "');"]
-                );
-                ?>
+                <?php wp_nonce_field('wphaven_save_connection_secret', 'wphaven_connection_secret_nonce'); ?>
+                <input type="hidden" name="action" value="wphaven_save_connection_secret">
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><label for="wphaven_connection_secret"><?php echo esc_html__('Secret', 'wphaven-connect'); ?></label></th>
+                        <td>
+                            <input id="wphaven_connection_secret" name="wphaven_connection_secret" type="text" class="large-text code"
+                                value="<?php echo esc_attr($secret !== null ? $secret : ''); ?>"
+                                placeholder="<?php echo esc_attr__('Paste a secret from another environment, or generate one.', 'wphaven-connect'); ?>">
+                            <p class="description"><?php echo esc_html__('Editable so you can paste the same value across environments.', 'wphaven-connect'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+                <p class="submit" style="display:flex; gap:8px; align-items:center;">
+                    <?php submit_button(__('Save Secret', 'wphaven-connect'), 'primary', 'save', false); ?>
+                    <?php
+                    submit_button(
+                        $secret === null ? __('Generate New', 'wphaven-connect') : __('Regenerate', 'wphaven-connect'),
+                        'secondary',
+                        'regenerate',
+                        false,
+                        $secret === null ? [] : ['onclick' => "return confirm('" . esc_js(__('Regenerating replaces the current secret and will break connections until you copy the new value to every environment. Continue?', 'wphaven-connect')) . "');"]
+                    );
+                    ?>
+                </p>
             </form>
         <?php endif; ?>
         <?php
     }
 
-    public function handleRegenerateSecret()
+    public function handleConnectionSecret()
     {
         $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
         $is_admin = current_user_can('manage_options');
@@ -552,15 +566,22 @@ class SettingsServiceProvider
             wp_die(__('Unauthorized: You do not have permission to perform this action.', 'wphaven-connect'));
         }
 
-        $nonce = isset($_POST['wphaven_transfer_secret_nonce']) ? wp_unslash($_POST['wphaven_transfer_secret_nonce']) : '';
-        if (empty($nonce) || !wp_verify_nonce(sanitize_text_field($nonce), 'wphaven_regenerate_transfer_secret')) {
+        $nonce = isset($_POST['wphaven_connection_secret_nonce']) ? wp_unslash($_POST['wphaven_connection_secret_nonce']) : '';
+        if (empty($nonce) || !wp_verify_nonce(sanitize_text_field($nonce), 'wphaven_save_connection_secret')) {
             wp_die('Invalid Nonce');
         }
 
-        TransferSecret::regenerate();
+        if (isset($_POST['regenerate'])) {
+            ConnectionSecret::regenerate();
+            $result = 'regenerated';
+        } else {
+            $value = isset($_POST['wphaven_connection_secret']) ? sanitize_text_field(wp_unslash($_POST['wphaven_connection_secret'])) : '';
+            ConnectionSecret::set($value);
+            $result = 'saved';
+        }
 
         $redirect = add_query_arg(
-            ['page' => 'wphaven-connect', 'wphaven_secret' => 'regenerated'],
+            ['page' => 'wphaven-connect', 'wphaven_secret' => $result],
             admin_url('options-general.php')
         );
         wp_safe_redirect($redirect);
@@ -602,7 +623,7 @@ class SettingsServiceProvider
             $readonly,
             $extra
         );
-        echo '<p class="description">' . esc_html__('The production site content is sent to and pulled from. Leave empty on the production site itself.', 'wphaven-connect') . '</p>';
+        echo '<p class="description">' . esc_html__('The production site content is sent to and pulled from. Safe to set on every environment, including production itself.', 'wphaven-connect') . '</p>';
     }
 
     public function renderAdminLoginSlugField()

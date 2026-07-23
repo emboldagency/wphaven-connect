@@ -11,7 +11,7 @@ use WPHavenConnect\ContentTransfer\ContentIdentity;
 use WPHavenConnect\ContentTransfer\ContentImporter;
 use WPHavenConnect\ContentTransfer\ContentSerializer;
 use WPHavenConnect\ContentTransfer\TransferClient;
-use WPHavenConnect\ContentTransfer\TransferSecret;
+use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\Utilities\ElevatedUsers;
 use WPHavenConnect\Utilities\Environment;
 
@@ -94,15 +94,15 @@ class ContentTransferServiceProvider
      */
     public function permissionCheck()
     {
-        if (TransferSecret::get() === null) {
+        if (ConnectionSecret::get() === null) {
             return new WP_Error('wphaven_transfer_disabled', __('Content transfer is not configured on this site.', 'wphaven-connect'), ['status' => 403]);
         }
 
-        if (TransferSecret::matches($this->bearerToken())) {
+        if (ConnectionSecret::matches($this->bearerToken())) {
             return true;
         }
 
-        return new WP_Error('wphaven_transfer_forbidden', __('Invalid content-transfer secret.', 'wphaven-connect'), ['status' => 401]);
+        return new WP_Error('wphaven_transfer_forbidden', __('Invalid environment connection secret.', 'wphaven-connect'), ['status' => 401]);
     }
 
     /**
@@ -234,8 +234,8 @@ class ContentTransferServiceProvider
         if (TransferClient::productionUrl() === null) {
             wp_send_json_error(['message' => __('Set a Production URL in WP Haven Connect settings first.', 'wphaven-connect')], 400);
         }
-        if (TransferSecret::get() === null) {
-            wp_send_json_error(['message' => __('Set a content-transfer secret in WP Haven Connect settings first.', 'wphaven-connect')], 400);
+        if (ConnectionSecret::get() === null) {
+            wp_send_json_error(['message' => __('Set an environment connection secret in WP Haven Connect settings first.', 'wphaven-connect')], 400);
         }
 
         $result = $direction === 'pull'
