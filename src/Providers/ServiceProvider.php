@@ -19,6 +19,7 @@ class ServiceProvider
         AssetUrlServiceProvider::class,
         ClientAlertsProvider::class,
         CommandLineServiceProvider::class,
+        ContentTransferServiceProvider::class,
         CookieServiceProvider::class,
         CustomAdminLoginProvider::class,
         DisableMailServiceProvider::class,
