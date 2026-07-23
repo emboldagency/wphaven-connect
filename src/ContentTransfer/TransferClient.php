@@ -14,7 +14,14 @@ use WP_Error;
  */
 class TransferClient
 {
-    const REST_BASE = '/wp-json/wphaven-connect/v1';
+    /**
+     * REST routes are addressed via the query-string form
+     * (`/index.php?rest_route=/wphaven-connect/v1/...`) rather than the pretty
+     * `/wp-json/...` path. It behaves identically but sidesteps common server
+     * hardening that blocks POST to the `/wp-json/` path (and works even without
+     * pretty permalinks).
+     */
+    const REST_ROUTE_BASE = '/index.php?rest_route=/wphaven-connect/v1';
 
     const PRODUCTION_URL_OPTION = 'wphaven_production_url';
 
@@ -176,13 +183,14 @@ class TransferClient
             return new WP_Error('wphaven_no_secret', __('No environment connection secret is configured.', 'wphaven-connect'), ['status' => 400]);
         }
 
-        $response = wp_remote_post($base . self::REST_BASE . $path, [
-            'timeout' => 60,
-            'headers' => [
+        $response = wp_remote_post($base . self::REST_ROUTE_BASE . $path, [
+            'timeout'    => 60,
+            'user-agent' => 'WPHavenConnect',
+            'headers'    => [
                 'Content-Type'  => 'application/json',
                 'Authorization' => 'Bearer ' . $secret,
             ],
-            'body'    => wp_json_encode($body),
+            'body'       => wp_json_encode($body),
         ]);
 
         if (is_wp_error($response)) {
@@ -193,9 +201,18 @@ class TransferClient
         $data = json_decode(wp_remote_retrieve_body($response), true);
 
         if ($code < 200 || $code >= 300) {
-            $message = is_array($data) && isset($data['message'])
-                ? $data['message']
-                : sprintf(/* translators: %d: HTTP status code */ __('Remote responded with status %d.', 'wphaven-connect'), $code);
+            if (is_array($data) && isset($data['message'])) {
+                // A structured WordPress/plugin error.
+                $message = $data['message'];
+            } else {
+                // Non-JSON body ⇒ the request was rejected before WordPress ran
+                // (web-server rule, security layer, or CDN), not by the plugin.
+                $message = sprintf(
+                    /* translators: %d: HTTP status code */
+                    __('The destination returned a non-WordPress %d response — it was blocked before reaching the plugin (a web-server/security rule on the destination, e.g. POST disabled for /wp-json/). Check the destination server logs.', 'wphaven-connect'),
+                    $code
+                );
+            }
             return new WP_Error('wphaven_remote_error', $message, ['status' => $code, 'body' => $data]);
         }
 
