@@ -24,7 +24,7 @@ class DatabaseTransferPanel
         <div class="notice notice-error inline" style="border-left-color:#d63638;padding:12px;">
             <p style="margin:0;">
                 <strong><?php echo esc_html__('Danger:', 'wphaven-connect'); ?></strong>
-                <?php echo esc_html__('This overwrites the selected tables on the destination entirely, then rewrites the source domain to the destination throughout. Selecting wp_options, wp_users or wp_usermeta will overwrite the destination\'s own configuration and accounts. Each table is imported into a temporary table and swapped in atomically; the old table is renamed aside only for the duration of the swap and dropped as soon as it succeeds (kept only if the transfer fails). There is no persistent backup, so make sure you have a database backup first. The destination needs free disk space roughly equal to the largest table being transferred.', 'wphaven-connect'); ?>
+                <?php echo esc_html__('This overwrites the selected tables on the destination entirely, then rewrites the source domain to the destination throughout. Selecting wp_options, wp_users or wp_usermeta will overwrite the destination\'s own configuration and accounts. Each table is imported into a temporary table and swapped in atomically; the old table is renamed aside only for the duration of the swap and dropped as soon as it succeeds (kept only if the transfer fails). There is no persistent backup, so take a RunCloud on-demand backup from WP Haven before pushing to production. The destination needs free disk space roughly equal to the largest table being transferred.', 'wphaven-connect'); ?>
             </p>
         </div>
 

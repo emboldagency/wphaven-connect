@@ -32,6 +32,7 @@ class ServiceProvider
         SiteHealthServiceProvider::class,
         SupportTicketServiceProvider::class,
         UpdateCommitMessageProvider::class,
+        UploadsSyncServiceProvider::class,
         WooCommerceServiceProvider::class,
         WordfenceServiceProvider::class,
     ];

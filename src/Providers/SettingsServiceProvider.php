@@ -5,6 +5,7 @@ namespace WPHavenConnect\Providers;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\DatabaseTransfer\DatabaseTransferPanel;
+use WPHavenConnect\UploadsSync\UploadsSyncPanel;
 use WPHavenConnect\Utilities\ElevatedUsers;
 use WPHavenConnect\Utilities\Environment;
 
@@ -299,6 +300,16 @@ class SettingsServiceProvider
         DatabaseTransferPanel::render();
     }
 
+    private function renderUploadsTab()
+    {
+        if (Environment::is_production()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Uploads Sync runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            return;
+        }
+
+        UploadsSyncPanel::render();
+    }
+
     public function renderSettingsPage()
     {
         $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
@@ -321,7 +332,7 @@ class SettingsServiceProvider
 
             <?php
             $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
-            if (! in_array($active_tab, ['settings', 'database'], true)) {
+            if (! in_array($active_tab, ['settings', 'database', 'uploads'], true)) {
                 $active_tab = 'settings';
             }
             ?>
@@ -334,11 +345,20 @@ class SettingsServiceProvider
                     class="nav-tab <?php echo $active_tab === 'database' ? 'nav-tab-active' : ''; ?>">
                     <?php echo esc_html__('Database Transfer', 'wphaven-connect'); ?>
                 </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=uploads')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'uploads' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Uploads', 'wphaven-connect'); ?>
+                </a>
             </h2>
 
             <?php
             if ($active_tab === 'database') {
                 $this->renderDatabaseTab();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'uploads') {
+                $this->renderUploadsTab();
                 echo '</div>';
                 return;
             }

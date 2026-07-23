@@ -124,6 +124,43 @@ class TransferClient
     }
 
     /**
+     * List the remote's uploads files (path, size, mtime).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function uploadsManifest()
+    {
+        return $this->request('/uploads/manifest', []);
+    }
+
+    /**
+     * Fetch a byte range of a remote uploads file (pull).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function uploadsFetch(string $path, int $offset, int $length)
+    {
+        return $this->request('/uploads/fetch', ['path' => $path, 'offset' => $offset, 'length' => $length]);
+    }
+
+    /**
+     * Write a byte range of an uploads file on the remote (push).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function uploadsReceive(string $path, int $offset, string $data_base64, int $size, int $mtime, bool $done)
+    {
+        return $this->request('/uploads/receive', [
+            'path'   => $path,
+            'offset' => $offset,
+            'data'   => $data_base64,
+            'size'   => $size,
+            'mtime'  => $mtime,
+            'done'   => $done,
+        ]);
+    }
+
+    /**
      * @param array<string, mixed> $body
      * @return array<string, mixed>|WP_Error
      */

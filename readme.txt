@@ -14,6 +14,12 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.25.0 =
+* Add an "Uploads" tab that syncs the wp-content/uploads directory between this environment and production, in either direction. Pair it with a Database Transfer so migrated content finds its media.
+* Additive by design: files missing on the destination are copied over (optionally also files that differ), and nothing is ever deleted.
+* Transfers compare file manifests first and only move what's needed, chunk large files by byte range, show a progress bar, and are idempotent (re-running only moves what's still missing). Available on non-production environments only.
+* Database Transfer now advises taking a RunCloud on-demand backup from WP Haven before pushing (there is no in-plugin snapshot).
+
 = 0.24.0 =
 * Add a "Database Transfer" tab to the WP Haven Connect settings page (the existing settings become the first tab).
 * Select any tables and Send to Production or Pull from Production; the destination tables are overwritten and the source domain is rewritten to the destination's throughout, safely handling PHP-serialized data.
