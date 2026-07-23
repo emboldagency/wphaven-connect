@@ -213,27 +213,41 @@
         PluginPostStatusInfo,
         { className: "wphaven-content-transfer" },
         el(
-          Button,
+          "div",
           {
-            variant: "secondary",
-            isBusy: statusText === i18n.working,
-            onClick: function () {
-              trigger("push");
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              gap: "8px",
+              width: "100%",
             },
           },
-          i18n.sendTitle
-        ),
-        el(
-          Button,
-          {
-            variant: "tertiary",
-            onClick: function () {
-              trigger("pull");
+          el(
+            Button,
+            {
+              variant: "secondary",
+              isBusy: statusText === i18n.working,
+              style: { justifyContent: "center" },
+              onClick: function () {
+                trigger("push");
+              },
             },
-          },
-          i18n.pullTitle
-        ),
-        statusText ? el("p", { className: "description" }, statusText) : null
+            i18n.sendTitle
+          ),
+          el(
+            Button,
+            {
+              variant: "secondary",
+              style: { justifyContent: "center" },
+              onClick: function () {
+                trigger("pull");
+              },
+            },
+            i18n.pullTitle
+          ),
+          statusText ? el("p", { className: "description", style: { margin: 0 } }, statusText) : null
+        )
       );
     };
 

@@ -80,9 +80,14 @@ class MediaSideloader
             return null;
         }
 
-        $attachment_id = $origin === 'production'
-            ? $this->resolveProductionHosted($relative, $source_url, $item)
-            : $this->sideload($source_url, $item);
+        if (! empty($item['data'])) {
+            // Reliable path: the sender embedded the file bytes.
+            $attachment_id = $this->sideloadFromData((string) $item['data'], $source_url, $item);
+        } elseif ($origin === 'production') {
+            $attachment_id = $this->resolveProductionHosted($relative, $source_url, $item);
+        } else {
+            $attachment_id = $this->sideload($source_url, $item);
+        }
 
         if ($attachment_id === null) {
             return null;
@@ -170,6 +175,62 @@ class MediaSideloader
         if (is_wp_error($attachment_id)) {
             wp_delete_file($tmp);
             $this->warnings[] = sprintf('Sideload failed for %s: %s', $source_url, $attachment_id->get_error_message());
+            return null;
+        }
+
+        update_post_meta($attachment_id, self::SOURCE_URL_META, $source_url);
+        $this->applyAltText($attachment_id, $item);
+
+        return $attachment_id;
+    }
+
+    /**
+     * Store an attachment from bytes embedded in the envelope. Needs no HTTP
+     * fetch, so it works regardless of whether the source is publicly reachable.
+     *
+     * @param array<string, mixed> $item
+     */
+    private function sideloadFromData(string $base64, string $source_url, array $item): ?int
+    {
+        $existing = $this->findAttachmentBySourceUrl($source_url);
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $bytes = base64_decode($base64, true);
+        if ($bytes === false || $bytes === '') {
+            $this->warnings[] = sprintf('Invalid embedded media data for %s', $source_url);
+            return null;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+
+        $filename = sanitize_file_name($item['filename'] ?? wp_basename(wp_parse_url($source_url, PHP_URL_PATH) ?? 'file'));
+
+        $tmp = wp_tempnam($filename);
+        if (! $tmp || file_put_contents($tmp, $bytes) === false) {
+            if ($tmp) {
+                wp_delete_file($tmp);
+            }
+            $this->warnings[] = sprintf('Could not buffer embedded media for %s', $source_url);
+            return null;
+        }
+
+        $check = wp_check_filetype_and_ext($tmp, $filename);
+        if (empty($check['ext']) || empty($check['type'])) {
+            wp_delete_file($tmp);
+            $this->warnings[] = sprintf('Rejected embedded media with disallowed type: %s', $source_url);
+            return null;
+        }
+
+        $file_array = ['name' => $filename, 'tmp_name' => $tmp];
+        $attachment_id = media_handle_sideload($file_array, 0);
+
+        if (is_wp_error($attachment_id)) {
+            wp_delete_file($tmp);
+            $this->warnings[] = sprintf('Import failed for %s: %s', $source_url, $attachment_id->get_error_message());
             return null;
         }
 

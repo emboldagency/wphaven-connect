@@ -337,8 +337,8 @@ class ContentTransferServiceProvider
         }
 
         echo '<div class="wphaven-content-transfer misc-pub-section" style="padding:8px 0;">';
-        echo '<button type="button" class="button wphaven-send-to-production">' . esc_html__('Send to Production', 'wphaven-connect') . '</button> ';
-        echo '<button type="button" class="button wphaven-update-from-production">' . esc_html__('Update from Production', 'wphaven-connect') . '</button>';
+        echo '<button type="button" class="button wphaven-send-to-production" style="display:block;width:100%;text-align:center;margin-bottom:6px;">' . esc_html__('Send to Production', 'wphaven-connect') . '</button>';
+        echo '<button type="button" class="button wphaven-update-from-production" style="display:block;width:100%;text-align:center;">' . esc_html__('Update from Production', 'wphaven-connect') . '</button>';
         echo '<p class="wphaven-transfer-status description"></p>';
         echo '</div>';
     }

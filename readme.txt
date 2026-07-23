@@ -17,7 +17,8 @@ Provides functionality to connect to the remote maintenance and management platf
 = 0.23.0 =
 * Add Content Transfer: send an individual post, page or custom post type to production (or pull the production version back) right from the editor, on both the block and classic editors.
 * Add a "Connection Settings" section with a Production URL field and an editable, regenerable environment connection secret that must match across every environment.
-* Transfers copy the post, its custom fields (including ACF and Yoast, which store as post meta), assigned terms, the featured image and images embedded in the content; production-hosted media is linked rather than re-uploaded.
+* Transfers copy the post, its custom fields (including ACF and Yoast, which store as post meta), assigned terms, the featured image and images embedded in the content. Media files are embedded in the transfer payload so they import reliably even when the source environment is not publicly reachable; production-hosted media is linked rather than re-uploaded.
+* The source site's domain is automatically rewritten to the destination's across content, excerpt and meta, so references to the origin environment are repointed on arrival (ASSET_URL production media is left untouched).
 * Transfers preview a summary before applying, land new items as drafts, keep the target's publish status unless explicitly published, snapshot the target before overwriting, and warn when the target changed more recently.
 * Known limitations: nested ACF (repeater/flexible/clone) media, Yoast primary category and OG image IDs, and WooCommerce galleries/variations are not remapped in this version.
 

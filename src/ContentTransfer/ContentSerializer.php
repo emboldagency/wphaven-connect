@@ -223,7 +223,36 @@ class ContentSerializer
             'filename'             => wp_basename(get_attached_file($attachment_id) ?: $url),
             'mime'                 => get_post_mime_type($attachment_id) ?: '',
             'alt'                  => get_post_meta($attachment_id, '_wp_attachment_image_alt', true),
+            // Embed the original file bytes so the receiver never has to fetch it
+            // over HTTP (source environments are often not publicly reachable).
+            // Null when the file is not on this disk (e.g. served from ASSET_URL).
+            'data'                 => $this->encodeAttachmentData($attachment_id),
         ];
+    }
+
+    /**
+     * Base64-encode an attachment's original file for embedding in the envelope.
+     * Returns null when the file is absent locally or exceeds the size cap
+     * (filterable via `wphaven_content_max_embedded_bytes`, default 25MB).
+     */
+    private function encodeAttachmentData(int $attachment_id): ?string
+    {
+        $path = get_attached_file($attachment_id);
+        if (! $path || ! file_exists($path) || ! is_readable($path)) {
+            return null;
+        }
+
+        $max = (int) apply_filters('wphaven_content_max_embedded_bytes', 25 * MB_IN_BYTES);
+        if ($max > 0 && filesize($path) > $max) {
+            return null;
+        }
+
+        $bytes = file_get_contents($path);
+        if ($bytes === false) {
+            return null;
+        }
+
+        return base64_encode($bytes);
     }
 
     /**

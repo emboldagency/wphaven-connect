@@ -111,19 +111,19 @@ class ContentImporter
         $media = new MediaSideloader($this->allowedHosts($envelope), Environment::is_production());
         $media->importManifest((array) $envelope['media_manifest']);
 
-        $post_in = $envelope['post'];
+        $post_in         = $envelope['post'];
+        $id_map          = $media->idMap();
+        $url_map         = $media->urlMap();
+        $source_site_url = (string) ($envelope['source_site_url'] ?? '');
+
         $status  = $this->resolveStatus($post_in['post_status'] ?? 'draft', $is_new, $publish, $existing);
-        $content = $this->remapContent(
-            (string) ($post_in['post_content'] ?? ''),
-            $media->idMap(),
-            $media->urlMap(),
-            (string) ($envelope['source_site_url'] ?? '')
-        );
+        $content = $this->remapContent((string) ($post_in['post_content'] ?? ''), $id_map, $url_map, $source_site_url);
+        $excerpt = $this->rewriteReferences((string) ($post_in['post_excerpt'] ?? ''), $url_map, $source_site_url);
 
         $postarr = [
             'post_title'   => $post_in['post_title'] ?? '',
             'post_content' => $content,
-            'post_excerpt' => $post_in['post_excerpt'] ?? '',
+            'post_excerpt' => $excerpt,
             'post_status'  => $status,
             'post_type'    => $post_in['post_type'] ?? 'post',
             'post_name'    => $post_in['post_name'] ?? '',
@@ -143,7 +143,7 @@ class ContentImporter
         }
 
         ContentIdentity::assign($post_id, $envelope['content_id']);
-        $this->applyMeta($post_id, (array) $envelope['meta'], $media->idMap());
+        $this->applyMeta($post_id, (array) $envelope['meta'], $id_map, $url_map, $source_site_url);
         $this->applyFeaturedImage($post_id, $envelope['featured_image'] ?? null, $media->idMap());
         $this->applyTerms($post_id, (array) $envelope['terms']);
 
@@ -259,8 +259,9 @@ class ContentImporter
     /**
      * @param array<string, array<int, mixed>> $meta
      * @param array<int, int>                   $id_map
+     * @param array<string, string>             $url_map
      */
-    private function applyMeta(int $post_id, array $meta, array $id_map): void
+    private function applyMeta(int $post_id, array $meta, array $id_map, array $url_map, string $source_site_url): void
     {
         foreach (array_keys(get_post_meta($post_id)) as $key) {
             if (in_array($key, ContentSerializer::META_DENYLIST, true)) {
@@ -276,31 +277,36 @@ class ContentImporter
                 continue;
             }
             foreach ((array) $values as $value) {
-                add_post_meta($post_id, $key, wp_slash($this->remapMetaValue($value, $id_map)));
+                add_post_meta($post_id, $key, wp_slash($this->remapMetaValue($value, $id_map, $url_map, $source_site_url)));
             }
         }
     }
 
     /**
-     * Remap any meta value that is (or contains) a transferred attachment id.
-     * Covers ACF image ids and gallery id arrays best-effort.
+     * Remap a meta value: transferred attachment ids (ACF image/gallery), and,
+     * for strings, the media URLs and source domain (rewritten to this site).
      *
-     * @param mixed           $value
-     * @param array<int, int> $id_map
+     * @param mixed                 $value
+     * @param array<int, int>       $id_map
+     * @param array<string, string> $url_map
      * @return mixed
      */
-    private function remapMetaValue($value, array $id_map)
+    private function remapMetaValue($value, array $id_map, array $url_map, string $source_site_url)
     {
         if (is_array($value)) {
             $out = [];
             foreach ($value as $k => $v) {
-                $out[$k] = $this->remapMetaValue($v, $id_map);
+                $out[$k] = $this->remapMetaValue($v, $id_map, $url_map, $source_site_url);
             }
             return $out;
         }
 
         if (is_numeric($value) && isset($id_map[(int) $value])) {
             return $id_map[(int) $value];
+        }
+
+        if (is_string($value)) {
+            return $this->rewriteReferences($value, $url_map, $source_site_url);
         }
 
         return $value;
@@ -360,9 +366,10 @@ class ContentImporter
     }
 
     /**
-     * Rewrite media references in content to their local equivalents.
+     * Remap media references in post content: attachment-id references in
+     * block markup and image classes, then the shared URL/domain rewrite.
      *
-     * @param array<int, int>      $id_map
+     * @param array<int, int>       $id_map
      * @param array<string, string> $url_map
      */
     private function remapContent(string $content, array $id_map, array $url_map, string $source_site_url): string
@@ -372,33 +379,49 @@ class ContentImporter
             $content = str_replace('"id":' . $old, '"id":' . $new, $content);
         }
 
-        foreach ($url_map as $old_url => $new_url) {
-            $content = str_replace($old_url, $new_url, $content);
+        return $this->rewriteReferences($content, $url_map, $source_site_url);
+    }
+
+    /**
+     * Rewrite URL/domain references in any transferred text (post content,
+     * excerpt, meta): swap imported media URLs for their local equivalents and
+     * replace the source site's domain with this site's, so references to the
+     * origin environment are repointed automatically. ASSET_URL-hosted media is
+     * protected so production assets are never repointed.
+     *
+     * @param array<string, string> $url_map
+     */
+    private function rewriteReferences(string $text, array $url_map, string $source_site_url): string
+    {
+        if ($text === '') {
+            return $text;
         }
 
-        // Domain rewrite for internal links and image subsizes, protecting
-        // ASSET_URL-hosted media so production assets are not repointed.
+        foreach ($url_map as $old_url => $new_url) {
+            $text = str_replace($old_url, $new_url, $text);
+        }
+
         $token = '%%WPHAVEN_ASSET_URL%%';
         $asset = (defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
         if ($asset) {
-            $content = str_replace($asset, $token, $content);
+            $text = str_replace($asset, $token, $text);
         }
 
         $target = site_url();
         if ($source_site_url && untrailingslashit($source_site_url) !== untrailingslashit($target)) {
-            $content = str_replace(untrailingslashit($source_site_url), untrailingslashit($target), $content);
-            $content = str_replace(
+            $text = str_replace(untrailingslashit($source_site_url), untrailingslashit($target), $text);
+            $text = str_replace(
                 preg_replace('#^https?:#', '', untrailingslashit($source_site_url)),
                 preg_replace('#^https?:#', '', untrailingslashit($target)),
-                $content
+                $text
             );
         }
 
         if ($asset) {
-            $content = str_replace($token, $asset, $content);
+            $text = str_replace($token, $asset, $text);
         }
 
-        return $content;
+        return $text;
     }
 
     /**
