@@ -59,6 +59,21 @@
   }
 
   /**
+   * Report a successful transfer. A pull overwrote the local content, so the
+   * editor is now showing stale data — reload to reveal it.
+   */
+  function onSuccess(direction, report) {
+    if (direction === "pull") {
+      report(i18n.pulled);
+      window.setTimeout(function () {
+        window.location.reload();
+      }, 900);
+    } else {
+      report(i18n.sent);
+    }
+  }
+
+  /**
    * Run the full preview → confirm → commit flow for one direction.
    *
    * @param {string} direction "push" or "pull"
@@ -118,7 +133,11 @@
                 preview: 0,
                 overwrite_conflict: 1,
               }).then(function (r) {
-                report(r && r.success ? i18n.done : (r && r.data && r.data.message) || i18n.error);
+                if (r && r.success) {
+                  onSuccess(direction, report);
+                } else {
+                  report((r && r.data && r.data.message) || i18n.error);
+                }
               });
               return;
             }
@@ -127,7 +146,7 @@
           }
           throw new Error(msg);
         }
-        report(i18n.done);
+        onSuccess(direction, report);
       })
       .catch(function (err) {
         report(err.message || i18n.error);

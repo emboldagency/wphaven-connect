@@ -364,7 +364,8 @@ class ContentTransferServiceProvider
                 'confirmPull'   => __('Overwrite this content with the production version?', 'wphaven-connect'),
                 'working'       => __('Working…', 'wphaven-connect'),
                 'conflict'      => __('Production changed more recently than this version. Overwrite anyway?', 'wphaven-connect'),
-                'done'          => __('Done.', 'wphaven-connect'),
+                'sent'          => __('Sent to production.', 'wphaven-connect'),
+                'pulled'        => __('Updated from production — reloading to show the new content…', 'wphaven-connect'),
                 'error'         => __('Transfer failed.', 'wphaven-connect'),
             ],
         ];
