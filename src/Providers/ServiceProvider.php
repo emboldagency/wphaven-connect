@@ -22,6 +22,7 @@ class ServiceProvider
         ContentTransferServiceProvider::class,
         CookieServiceProvider::class,
         CustomAdminLoginProvider::class,
+        DatabaseTransferServiceProvider::class,
         DisableMailServiceProvider::class,
         EnvironmentIndicatorAdminBarBadgeProvider::class,
         HealthServiceProvider::class,

@@ -73,6 +73,57 @@ class TransferClient
     }
 
     /**
+     * List the remote's transferable tables (base name, rows, size).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function dbTables()
+    {
+        return $this->request('/database/tables', []);
+    }
+
+    /**
+     * Ask the remote to create a fresh stage table for a base table (push).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function dbBegin(string $base)
+    {
+        return $this->request('/database/begin', ['base' => $base]);
+    }
+
+    /**
+     * Send a batch of rows to the remote's stage table (push).
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<string, mixed>|WP_Error
+     */
+    public function dbChunk(string $base, array $rows)
+    {
+        return $this->request('/database/chunk', ['base' => $base, 'rows' => $rows]);
+    }
+
+    /**
+     * Ask the remote to URL-rewrite the stage table and swap it into place (push).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function dbFinalize(string $base, string $source_site_url)
+    {
+        return $this->request('/database/finalize', ['base' => $base, 'source_site_url' => $source_site_url]);
+    }
+
+    /**
+     * Fetch a chunk of rows from the remote table (pull).
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function dbExport(string $base, int $offset, int $limit)
+    {
+        return $this->request('/database/export', ['base' => $base, 'offset' => $offset, 'limit' => $limit]);
+    }
+
+    /**
      * @param array<string, mixed> $body
      * @return array<string, mixed>|WP_Error
      */

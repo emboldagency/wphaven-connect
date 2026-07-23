@@ -14,6 +14,13 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.24.0 =
+* Add a "Database Transfer" tab to the WP Haven Connect settings page (the existing settings become the first tab).
+* Select any tables and Send to Production or Pull from Production; the destination tables are overwritten and the source domain is rewritten to the destination's throughout, safely handling PHP-serialized data.
+* Each table is imported into a stage table and swapped into place atomically, with the previous table renamed aside as a backup (dropped on success, kept on failure) — so the live table is never empty mid-transfer.
+* Transfers are chunked with a live progress bar, and each direction requires typing an exact confirmation phrase before it will run. Available on non-production environments only.
+* Known limitations: multisite blog tables and non-prefixed tables are out of scope; very large tables are slower over the chunked transfer.
+
 = 0.23.0 =
 * Add Content Transfer: send an individual post, page or custom post type to production (or pull the production version back) right from the editor, on both the block and classic editors.
 * Add a "Connection Settings" section with a Production URL field and an editable, regenerable environment connection secret that must match across every environment.

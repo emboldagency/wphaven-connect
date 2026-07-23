@@ -12,6 +12,7 @@ use WPHavenConnect\ContentTransfer\ContentImporter;
 use WPHavenConnect\ContentTransfer\ContentSerializer;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
+use WPHavenConnect\ContentTransfer\TransferAuth;
 use WPHavenConnect\Utilities\ElevatedUsers;
 use WPHavenConnect\Utilities\Environment;
 
@@ -66,7 +67,7 @@ class ContentTransferServiceProvider
 
     public function registerRoutes(): void
     {
-        $permission = [$this, 'permissionCheck'];
+        $permission = [TransferAuth::class, 'permissionCheck'];
 
         register_rest_route('wphaven-connect/v1', '/content/export', [
             'methods'             => WP_REST_Server::CREATABLE,
@@ -85,53 +86,6 @@ class ContentTransferServiceProvider
             'callback'            => [$this, 'handleImport'],
             'permission_callback' => $permission,
         ]);
-    }
-
-    /**
-     * Authenticate a transfer request against the dedicated shared secret only.
-     *
-     * @return true|WP_Error
-     */
-    public function permissionCheck()
-    {
-        if (ConnectionSecret::get() === null) {
-            return new WP_Error('wphaven_transfer_disabled', __('Content transfer is not configured on this site.', 'wphaven-connect'), ['status' => 403]);
-        }
-
-        if (ConnectionSecret::matches($this->bearerToken())) {
-            return true;
-        }
-
-        return new WP_Error('wphaven_transfer_forbidden', __('Invalid environment connection secret.', 'wphaven-connect'), ['status' => 401]);
-    }
-
-    /**
-     * Extract the Bearer token, accounting for servers that relocate or strip the
-     * Authorization header.
-     */
-    private function bearerToken(): ?string
-    {
-        $header = '';
-
-        if (! empty($_SERVER['HTTP_AUTHORIZATION'])) {
-            $header = $_SERVER['HTTP_AUTHORIZATION'];
-        } elseif (! empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-            $header = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-        } elseif (function_exists('getallheaders')) {
-            foreach (getallheaders() as $name => $value) {
-                if (strtolower($name) === 'authorization') {
-                    $header = $value;
-                    break;
-                }
-            }
-        }
-
-        if (stripos($header, 'Bearer ') === 0) {
-            $token = trim(substr($header, 7));
-            return $token !== '' ? $token : null;
-        }
-
-        return null;
     }
 
     /**

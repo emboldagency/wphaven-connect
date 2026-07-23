@@ -4,7 +4,9 @@ namespace WPHavenConnect\Providers;
 
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\ContentTransfer\TransferClient;
+use WPHavenConnect\DatabaseTransfer\DatabaseTransferPanel;
 use WPHavenConnect\Utilities\ElevatedUsers;
+use WPHavenConnect\Utilities\Environment;
 
 class SettingsServiceProvider
 {
@@ -287,6 +289,16 @@ class SettingsServiceProvider
         return '<p class="' . esc_attr($class) . '">' . $message . '</p>';
     }
 
+    private function renderDatabaseTab()
+    {
+        if (Environment::is_production()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Database Transfer runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            return;
+        }
+
+        DatabaseTransferPanel::render();
+    }
+
     public function renderSettingsPage()
     {
         $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
@@ -305,9 +317,32 @@ class SettingsServiceProvider
         $recipient_default = !empty($current_user_email) ? $current_user_email : $admin_email;
         ?>
         <div class="wrap">
-            <h1>
-                <?php echo esc_html__('WP Haven Connect: Development Settings', 'wphaven-connect'); ?>
-            </h1>
+            <h1><?php echo esc_html__('WP Haven Connect', 'wphaven-connect'); ?></h1>
+
+            <?php
+            $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+            if (! in_array($active_tab, ['settings', 'database'], true)) {
+                $active_tab = 'settings';
+            }
+            ?>
+            <h2 class="nav-tab-wrapper">
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=settings')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Settings', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=database')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'database' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Database Transfer', 'wphaven-connect'); ?>
+                </a>
+            </h2>
+
+            <?php
+            if ($active_tab === 'database') {
+                $this->renderDatabaseTab();
+                echo '</div>';
+                return;
+            }
+            ?>
 
             <?php
             if (is_plugin_active('wps-hide-login/wps-hide-login.php')) {

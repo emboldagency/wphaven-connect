@@ -24,6 +24,7 @@ WordPress plugin that provides functionality to connect to the remote maintenanc
 - **Asset URL Fallback**: Configure alternative asset URLs with ASSET_URL constant
 - **Haven WAF Cookie**: Set security cookies for elevated users (admin/editor) for WAF bypass
 - **Content Transfer**: Send an individual post/page/CPT to production, or pull the production version back, from the editor. Copies custom fields (ACF, Yoast), terms, featured and inline images, authenticated by a shared secret that must match across environments
+- **Database Transfer**: A settings-page tab to overwrite selected database tables between this environment and production (both directions), rewriting the source domain to the destination's (serialized-safe). Each table is backed up and swapped atomically; destructive actions require a typed confirmation phrase and run on non-production only
 
 ## Configuration
 
@@ -39,6 +40,7 @@ Configuration is available via:
    - WP Haven API base URL
    - Custom admin login slug
    - Production URL and environment connection secret (editable, with regenerate)
+   - A "Database Transfer" tab for overwriting selected tables to/from production
 
 2. **Environment Constants** (in `wp-config.php`):
    - `ELEVATED_EMAILS`: Array of admin emails
