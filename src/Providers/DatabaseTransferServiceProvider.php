@@ -7,6 +7,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
+use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferAuth;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\DatabaseTransfer\SearchReplace;
@@ -170,18 +171,24 @@ class DatabaseTransferServiceProvider
         if (! $this->userCanTransfer() || Environment::is_production()) {
             wp_send_json_error(['message' => __('Database transfer can only be started from a non-production environment.', 'wphaven-connect')], 403);
         }
-        if (TransferClient::productionUrl() === null || ConnectionSecret::get() === null) {
-            wp_send_json_error(['message' => __('Set a Production URL and connection secret first.', 'wphaven-connect')], 400);
+        if (ConnectionSecret::get() === null) {
+            wp_send_json_error(['message' => __('Set an environment connection secret first.', 'wphaven-connect')], 400);
         }
 
         $direction = sanitize_key($_POST['direction'] ?? '');
         $phase     = sanitize_key($_POST['phase'] ?? '');
         $base      = sanitize_text_field(wp_unslash($_POST['base'] ?? ''));
         $offset    = max(0, (int) ($_POST['offset'] ?? 0));
+        $target    = Environments::cleanLabel($_POST['target'] ?? '');
+
+        if (Environments::urlFor($target) === null) {
+            wp_send_json_error(['message' => __('Choose a destination environment first.', 'wphaven-connect')], 400);
+        }
+        $client = TransferClient::forLabel($target);
 
         $result = $direction === 'pull'
-            ? $this->stepPull($phase, $base, $offset)
-            : $this->stepPush($phase, $base, $offset);
+            ? $this->stepPull($client, $phase, $base, $offset)
+            : $this->stepPush($client, $phase, $base, $offset);
 
         if (is_wp_error($result)) {
             wp_send_json_error(['message' => $result->get_error_message(), 'code' => $result->get_error_code()], 200);
@@ -195,11 +202,10 @@ class DatabaseTransferServiceProvider
      *
      * @return array<string, mixed>|WP_Error
      */
-    private function stepPush(string $phase, string $base, int $offset)
+    private function stepPush(TransferClient $client, string $phase, string $base, int $offset)
     {
-        $repo   = new TableRepository();
-        $client = new TransferClient();
-        $full   = $repo->resolveFull($base);
+        $repo = new TableRepository();
+        $full = $repo->resolveFull($base);
         if (is_wp_error($full)) {
             return $full;
         }
@@ -239,11 +245,10 @@ class DatabaseTransferServiceProvider
      *
      * @return array<string, mixed>|WP_Error
      */
-    private function stepPull(string $phase, string $base, int $offset)
+    private function stepPull(TransferClient $client, string $phase, string $base, int $offset)
     {
-        $repo   = new TableRepository();
-        $client = new TransferClient();
-        $full   = $repo->resolveFull($base);
+        $repo = new TableRepository();
+        $full = $repo->resolveFull($base);
         if (is_wp_error($full)) {
             return $full;
         }
@@ -271,8 +276,8 @@ class DatabaseTransferServiceProvider
             return $response;
         }
 
-        // finalize
-        $replaced = (new SearchReplace((string) TransferClient::productionUrl(), site_url()))
+        // finalize — rewrite the source (peer) domain to this site's.
+        $replaced = (new SearchReplace((string) $client->peerUrl(), site_url()))
             ->replaceInTable($repo->wpdb(), $repo->stageName($base), $repo->primaryKey($full));
         $repo->atomicSwap($base, $full);
         $repo->dropBackup($base);
@@ -299,16 +304,17 @@ class DatabaseTransferServiceProvider
         );
 
         wp_localize_script('wphaven-db-transfer', 'wphavenDbTransfer', [
-            'ajaxUrl'       => admin_url('admin-ajax.php'),
-            'nonce'         => wp_create_nonce(self::NONCE_ACTION),
-            'action'        => self::AJAX_ACTION,
-            'productionUrl' => TransferClient::productionUrl(),
-            'pushPhrase'    => self::PUSH_PHRASE,
-            'pullPhrase'    => self::PULL_PHRASE,
-            'i18n'          => [
+            'ajaxUrl'         => admin_url('admin-ajax.php'),
+            'nonce'           => wp_create_nonce(self::NONCE_ACTION),
+            'action'          => self::AJAX_ACTION,
+            'productionLabel' => Environments::PRODUCTION_LABEL,
+            'pushPhrase'      => self::PUSH_PHRASE,
+            'i18n'            => [
                 'noTables'    => __('Select at least one table.', 'wphaven-connect'),
-                'confirmPush' => __('This will OVERWRITE the selected tables on production. Continue?', 'wphaven-connect'),
-                'confirmPull' => __('This will OVERWRITE the selected tables on this environment. Continue?', 'wphaven-connect'),
+                'pushTo'      => __('Send to %s', 'wphaven-connect'),
+                'pullFrom'    => __('Pull from %s', 'wphaven-connect'),
+                'confirmPush' => __('This will OVERWRITE the selected tables on "%s". Continue?', 'wphaven-connect'),
+                'confirmPull' => __('This will OVERWRITE the selected tables on this environment with "%s". Continue?', 'wphaven-connect'),
                 'working'     => __('Transferring %1$s (%2$s)…', 'wphaven-connect'),
                 'tableDone'   => __('✓ %s', 'wphaven-connect'),
                 'tableFail'   => __('✗ %1$s — %2$s', 'wphaven-connect'),

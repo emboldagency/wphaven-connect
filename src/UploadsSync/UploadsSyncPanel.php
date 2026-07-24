@@ -3,7 +3,7 @@
 namespace WPHavenConnect\UploadsSync;
 
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
-use WPHavenConnect\ContentTransfer\TransferClient;
+use WPHavenConnect\ContentTransfer\Environments;
 
 /**
  * Renders the "Uploads" tab: direction buttons, an overwrite-changed toggle, and
@@ -14,24 +14,24 @@ class UploadsSyncPanel
 {
     public static function render(): void
     {
-        $production_url = TransferClient::productionUrl();
-        $has_secret     = ConnectionSecret::get() !== null;
+        $environments = Environments::all();
+        $has_secret   = ConnectionSecret::get() !== null;
         ?>
         <h2><?php echo esc_html__('Uploads Sync', 'wphaven-connect'); ?></h2>
 
         <div class="notice notice-info inline" style="padding:12px;">
             <p style="margin:0;">
-                <?php echo esc_html__('Copies files in wp-content/uploads between this environment and production. This is additive — files missing on the destination are copied over and nothing is ever deleted. Pair it with a Database Transfer so migrated content finds its media.', 'wphaven-connect'); ?>
+                <?php echo esc_html__('Copies files in wp-content/uploads between this environment and the chosen one. This is additive — files missing on the destination are copied over and nothing is ever deleted. Pair it with a Database Transfer so migrated content finds its media.', 'wphaven-connect'); ?>
             </p>
         </div>
 
-        <?php if (! $production_url || ! $has_secret): ?>
+        <?php if (empty($environments) || ! $has_secret): ?>
             <div class="notice notice-warning inline">
                 <p>
                     <?php
                     echo wp_kses_post(sprintf(
                         /* translators: %s: settings tab URL */
-                        __('Set a Production URL and an environment connection secret on the <a href="%s">Settings</a> tab first.', 'wphaven-connect'),
+                        __('Add at least one environment and an environment connection secret on the <a href="%s">Settings</a> tab first.', 'wphaven-connect'),
                         esc_url(admin_url('options-general.php?page=wphaven-connect&tab=settings'))
                     ));
                     ?>
@@ -40,14 +40,13 @@ class UploadsSyncPanel
             <?php return; ?>
         <?php endif; ?>
 
-        <p class="description">
-            <?php
-            echo esc_html(sprintf(
-                /* translators: %s: production URL */
-                __('Paired production site: %s', 'wphaven-connect'),
-                $production_url
-            ));
-            ?>
+        <p>
+            <label for="wphaven-uploads-target"><strong><?php echo esc_html__('Environment', 'wphaven-connect'); ?></strong></label><br>
+            <select id="wphaven-uploads-target">
+                <?php foreach ($environments as $environment): ?>
+                    <option value="<?php echo esc_attr($environment['label']); ?>"><?php echo esc_html($environment['label']); ?></option>
+                <?php endforeach; ?>
+            </select>
         </p>
 
         <p>
@@ -58,12 +57,8 @@ class UploadsSyncPanel
         </p>
 
         <p class="submit" style="display:flex;gap:8px;">
-            <button type="button" class="button button-primary wphaven-uploads-action" data-direction="push">
-                <?php echo esc_html__('Send to Production', 'wphaven-connect'); ?>
-            </button>
-            <button type="button" class="button wphaven-uploads-action" data-direction="pull">
-                <?php echo esc_html__('Pull from Production', 'wphaven-connect'); ?>
-            </button>
+            <button type="button" class="button button-primary wphaven-uploads-action" data-direction="push"></button>
+            <button type="button" class="button wphaven-uploads-action" data-direction="pull"></button>
         </p>
 
         <div class="wphaven-uploads-progress" style="display:none;max-width:760px;">

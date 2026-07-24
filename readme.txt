@@ -14,6 +14,13 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.26.0 =
+* Transfers now target a chosen environment, not just production. Configure a modular list of environments (production/staging/maintenance, plus extras like "new"/"old" for server moves) and pick the destination when you push or pull content, tables, or uploads.
+* Add an "App Name" setting at the top of the settings page — auto-detected from the hostname on staging/maintenance/dev — used to identify the site and populate the environment list.
+* Add a "Populate Environment List from WP Haven" button that fetches this site's environment domains and updates matching rows (custom rows are kept).
+* Environment labels are always saved lowercase, so "Production" and "production" can't diverge; the row labeled "production" is the only one that requires typing a confirmation phrase to overwrite (other destinations use a plain confirm).
+* Transfer requests now use the REST query-string form, so destinations that block POST to /wp-json/ at the web server still work.
+
 = 0.25.0 =
 * Add an "Uploads" tab that syncs the wp-content/uploads directory between this environment and production, in either direction. Pair it with a Database Transfer so migrated content finds its media.
 * Additive by design: files missing on the destination are copied over (optionally also files that differ), and nothing is ever deleted.

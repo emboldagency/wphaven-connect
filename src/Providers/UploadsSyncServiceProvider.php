@@ -7,6 +7,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
+use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferAuth;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\UploadsSync\UploadsRepository;
@@ -122,8 +123,8 @@ class UploadsSyncServiceProvider
         if (! $this->userCanTransfer() || Environment::is_production()) {
             wp_send_json_error(['message' => __('Uploads sync can only be started from a non-production environment.', 'wphaven-connect')], 403);
         }
-        if (TransferClient::productionUrl() === null || ConnectionSecret::get() === null) {
-            wp_send_json_error(['message' => __('Set a Production URL and connection secret first.', 'wphaven-connect')], 400);
+        if (ConnectionSecret::get() === null) {
+            wp_send_json_error(['message' => __('Set an environment connection secret first.', 'wphaven-connect')], 400);
         }
 
         $phase = sanitize_key($_POST['phase'] ?? '');
@@ -146,7 +147,11 @@ class UploadsSyncServiceProvider
     {
         $direction = sanitize_key($_POST['direction'] ?? '');
         $overwrite = ! empty($_POST['overwrite']);
-        $client    = new TransferClient();
+        $target    = Environments::cleanLabel($_POST['target'] ?? '');
+        if (Environments::urlFor($target) === null) {
+            return new WP_Error('wphaven_uploads_no_target', __('Choose a destination environment first.', 'wphaven-connect'), ['status' => 400]);
+        }
+        $client = TransferClient::forLabel($target);
 
         $remote = $client->uploadsManifest();
         if (is_wp_error($remote)) {
@@ -173,6 +178,7 @@ class UploadsSyncServiceProvider
         $token = wp_generate_uuid4();
         set_transient(self::PLAN_TRANSIENT_PREFIX . $token, [
             'direction' => $direction,
+            'target'    => $target,
             'files'     => $plan_files,
         ], HOUR_IN_SECONDS);
 
@@ -201,11 +207,12 @@ class UploadsSyncServiceProvider
             return ['done' => true, 'index' => $index, 'offset' => 0, 'total' => $total];
         }
 
+        $client = TransferClient::forLabel($plan['target'] ?? '');
         $file   = $files[$index];
         $budget = $this->chunkBytes();
         $result = $plan['direction'] === 'pull'
-            ? $this->pullChunk($file, $offset, $budget)
-            : $this->pushChunk($file, $offset, $budget);
+            ? $this->pullChunk($client, $file, $offset, $budget)
+            : $this->pushChunk($client, $file, $offset, $budget);
 
         if (is_wp_error($result)) {
             // Skip this file and continue; surface a warning.
@@ -230,7 +237,7 @@ class UploadsSyncServiceProvider
      * @param array{path: string, size: int, mtime: int} $file
      * @return array{eof: bool, length: int}|WP_Error
      */
-    private function pushChunk(array $file, int $offset, int $budget)
+    private function pushChunk(TransferClient $client, array $file, int $offset, int $budget)
     {
         $read = (new UploadsRepository())->readRange($file['path'], $offset, $budget);
         if (is_wp_error($read)) {
@@ -238,7 +245,7 @@ class UploadsSyncServiceProvider
         }
 
         $length = $read['eof'] ? max(0, $file['size'] - $offset) : $budget;
-        $sent = (new TransferClient())->uploadsReceive(
+        $sent = $client->uploadsReceive(
             $file['path'],
             $offset,
             $read['data'],
@@ -259,9 +266,9 @@ class UploadsSyncServiceProvider
      * @param array{path: string, size: int, mtime: int} $file
      * @return array{eof: bool, length: int}|WP_Error
      */
-    private function pullChunk(array $file, int $offset, int $budget)
+    private function pullChunk(TransferClient $client, array $file, int $offset, int $budget)
     {
-        $fetch = (new TransferClient())->uploadsFetch($file['path'], $offset, $budget);
+        $fetch = $client->uploadsFetch($file['path'], $offset, $budget);
         if (is_wp_error($fetch)) {
             return $fetch;
         }
@@ -308,8 +315,10 @@ class UploadsSyncServiceProvider
             'nonce'   => wp_create_nonce(self::NONCE_ACTION),
             'action'  => self::AJAX_ACTION,
             'i18n'    => [
-                'confirmPush' => __('Copy missing uploads to production? (Nothing will be deleted.)', 'wphaven-connect'),
-                'confirmPull' => __('Copy missing uploads from production to this environment? (Nothing will be deleted.)', 'wphaven-connect'),
+                'pushTo'      => __('Send to %s', 'wphaven-connect'),
+                'pullFrom'    => __('Pull from %s', 'wphaven-connect'),
+                'confirmPush' => __('Copy missing uploads to "%s"? (Nothing will be deleted.)', 'wphaven-connect'),
+                'confirmPull' => __('Copy missing uploads from "%s" to this environment? (Nothing will be deleted.)', 'wphaven-connect'),
                 'planning'    => __('Comparing files…', 'wphaven-connect'),
                 'nothing'     => __('Everything is already in sync.', 'wphaven-connect'),
                 'working'     => __('%1$s of %2$s files…', 'wphaven-connect'),

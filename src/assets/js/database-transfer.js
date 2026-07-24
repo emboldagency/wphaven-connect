@@ -1,11 +1,11 @@
 /**
- * Database Transfer tab — chunked, browser-orchestrated table transfer.
+ * Database Transfer tab — chunked, browser-orchestrated table transfer to a
+ * chosen environment.
  *
- * The whole operation is driven from here: for each selected table the script
- * loops begin → chunk… → finalize, calling one admin-ajax unit of work per
- * request and advancing an offset until the server reports done. This keeps any
- * single request small (no timeouts) and gives live progress. The destructive
- * action buttons stay disabled until the exact confirmation phrase is typed.
+ * For each selected table the script loops begin → chunk… → finalize, one
+ * admin-ajax unit per request, advancing an offset until the server says done.
+ * The typed confirmation phrase is required only when pushing to the
+ * environment labeled "production"; everything else uses a plain confirm.
  */
 (function () {
   "use strict";
@@ -14,6 +14,7 @@
   var i18n = cfg.i18n || {};
 
   var confirmInput = document.getElementById("wphaven-db-confirm");
+  var targetSelect = document.getElementById("wphaven-db-target");
   var selectAll = document.querySelector(".wphaven-db-select-all");
   var actionButtons = Array.prototype.slice.call(document.querySelectorAll(".wphaven-db-action"));
   var progressBox = document.querySelector(".wphaven-db-progress");
@@ -21,8 +22,16 @@
   var progressLabel = document.querySelector(".wphaven-db-progress-label");
   var logBox = document.querySelector(".wphaven-db-log");
 
-  if (!confirmInput || !actionButtons.length) {
+  if (!actionButtons.length || !targetSelect) {
     return;
+  }
+
+  function target() {
+    return targetSelect.value;
+  }
+
+  function targetName() {
+    return targetSelect.options[targetSelect.selectedIndex].text;
   }
 
   function selectedTables() {
@@ -33,23 +42,35 @@
       });
   }
 
-  function phraseFor(direction) {
-    return direction === "pull" ? cfg.pullPhrase : cfg.pushPhrase;
+  /** A typed phrase is required only to push to production. */
+  function needsPhrase(direction) {
+    return direction === "push" && target() === cfg.productionLabel;
   }
 
-  /** Enable each button only when the typed phrase matches its direction. */
-  function syncButtons() {
-    var typed = confirmInput.value.trim();
-    actionButtons.forEach(function (btn) {
-      btn.disabled = typed !== phraseFor(btn.dataset.direction);
+  function phraseOk() {
+    return confirmInput && confirmInput.value.trim() === cfg.pushPhrase;
+  }
+
+  function fmt(template) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var auto = 0;
+    return String(template).replace(/%(?:(\d+)\$)?s/g, function (match, position) {
+      var index = position ? parseInt(position, 10) - 1 : auto++;
+      return args[index] !== undefined ? args[index] : "";
     });
   }
 
-  function setBusy(busy) {
+  /** Relabel buttons for the current target and enable/disable per phrase rule. */
+  function sync(busy) {
     actionButtons.forEach(function (btn) {
-      btn.disabled = busy || confirmInput.value.trim() !== phraseFor(btn.dataset.direction);
+      var direction = btn.dataset.direction;
+      btn.textContent = fmt(direction === "pull" ? i18n.pullFrom : i18n.pushTo, targetName());
+      var blocked = busy || (needsPhrase(direction) && !phraseOk());
+      btn.disabled = blocked;
     });
-    confirmInput.disabled = busy;
+    if (confirmInput) {
+      confirmInput.disabled = busy;
+    }
     if (selectAll) {
       selectAll.disabled = busy;
     }
@@ -73,21 +94,11 @@
     }
   }
 
-  /** Minimal sprintf supporting %s (sequential) and %1$s (positional). */
-  function fmt(template) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    var auto = 0;
-    return String(template).replace(/%(?:(\d+)\$)?s/g, function (match, position) {
-      var index = position ? parseInt(position, 10) - 1 : auto++;
-      return args[index] !== undefined ? args[index] : "";
-    });
-  }
-
-  /** POST one unit of work to admin-ajax. */
   function step(params) {
     var body = new FormData();
     body.append("action", cfg.action);
     body.append("nonce", cfg.nonce);
+    body.append("target", target());
     Object.keys(params).forEach(function (key) {
       body.append(key, params[key]);
     });
@@ -134,21 +145,23 @@
     });
   }
 
-  /** Run all selected tables sequentially. */
   function run(direction) {
     var tables = selectedTables();
     if (!tables.length) {
       window.alert(i18n.noTables);
       return;
     }
-    if (confirmInput.value.trim() !== phraseFor(direction)) {
+    if (needsPhrase(direction) && !phraseOk()) {
       return; // Button should be disabled anyway.
     }
-    if (!window.confirm(direction === "pull" ? i18n.confirmPull : i18n.confirmPush)) {
+    var confirmMsg = direction === "pull"
+      ? fmt(i18n.confirmPull, targetName())
+      : fmt(i18n.confirmPush, targetName());
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
-    setBusy(true);
+    sync(true);
     if (logBox) {
       logBox.textContent = "";
     }
@@ -170,15 +183,23 @@
 
     chain.then(function () {
       setProgress(1, i18n.allDone);
-      setBusy(false);
-      confirmInput.value = "";
-      syncButtons();
+      if (confirmInput) {
+        confirmInput.value = "";
+      }
+      sync(false);
     });
   }
 
   // --- Wire up --------------------------------------------------------------
 
-  confirmInput.addEventListener("input", syncButtons);
+  if (confirmInput) {
+    confirmInput.addEventListener("input", function () {
+      sync(false);
+    });
+  }
+  targetSelect.addEventListener("change", function () {
+    sync(false);
+  });
 
   if (selectAll) {
     selectAll.addEventListener("change", function () {
@@ -194,5 +215,5 @@
     });
   });
 
-  syncButtons();
+  sync(false);
 })();

@@ -23,12 +23,35 @@ class TransferClient
      */
     const REST_ROUTE_BASE = '/index.php?rest_route=/wphaven-connect/v1';
 
-    const PRODUCTION_URL_OPTION = 'wphaven_production_url';
-
     const PRODUCTION_URL_CONSTANT = 'WPHAVEN_PRODUCTION_URL';
 
+    /** The peer this client talks to (untrailingslashed), or null to fall back to production. */
+    private ?string $peerUrl;
+
+    public function __construct(?string $peer_url = null)
+    {
+        $this->peerUrl = ($peer_url !== null && $peer_url !== '') ? untrailingslashit($peer_url) : null;
+    }
+
     /**
-     * The configured Production URL (constant beats option), or null if unset.
+     * Build a client targeting the environment with the given label.
+     */
+    public static function forLabel(string $label): self
+    {
+        return new self(Environments::urlFor($label));
+    }
+
+    /**
+     * This client's target peer URL (falls back to production).
+     */
+    public function peerUrl(): ?string
+    {
+        return $this->peerUrl ?? self::productionUrl();
+    }
+
+    /**
+     * The configured production peer URL (the `WPHAVEN_PRODUCTION_URL` constant
+     * beats the `production` environment entry), or null if unset.
      */
     public static function productionUrl(): ?string
     {
@@ -36,10 +59,7 @@ class TransferClient
             return untrailingslashit((string) constant(self::PRODUCTION_URL_CONSTANT));
         }
 
-        $opts = get_option('wphaven_connect_options', []);
-        $url  = is_array($opts) && ! empty($opts[self::PRODUCTION_URL_OPTION]) ? $opts[self::PRODUCTION_URL_OPTION] : '';
-
-        return $url !== '' ? untrailingslashit($url) : null;
+        return Environments::urlFor(Environments::PRODUCTION_LABEL);
     }
 
     /**
@@ -173,9 +193,9 @@ class TransferClient
      */
     private function request(string $path, array $body)
     {
-        $base = self::productionUrl();
+        $base = $this->peerUrl ?? self::productionUrl();
         if ($base === null) {
-            return new WP_Error('wphaven_no_production_url', __('No Production URL is configured.', 'wphaven-connect'), ['status' => 400]);
+            return new WP_Error('wphaven_no_production_url', __('No destination environment is configured.', 'wphaven-connect'), ['status' => 400]);
         }
 
         $secret = ConnectionSecret::get();

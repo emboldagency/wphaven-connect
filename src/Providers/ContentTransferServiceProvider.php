@@ -12,6 +12,7 @@ use WPHavenConnect\ContentTransfer\ContentImporter;
 use WPHavenConnect\ContentTransfer\ContentSerializer;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
+use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferAuth;
 use WPHavenConnect\Utilities\ElevatedUsers;
 use WPHavenConnect\Utilities\Environment;
@@ -175,6 +176,7 @@ class ContentTransferServiceProvider
 
         $post_id   = (int) ($_POST['post_id'] ?? 0);
         $direction = sanitize_key($_POST['direction'] ?? '');
+        $target    = Environments::cleanLabel($_POST['target'] ?? '');
         $preview   = ! empty($_POST['preview']);
         $args      = [
             'publish'            => ! empty($_POST['publish']),
@@ -185,16 +187,16 @@ class ContentTransferServiceProvider
             wp_send_json_error(['message' => __('Invalid post.', 'wphaven-connect')], 400);
         }
 
-        if (TransferClient::productionUrl() === null) {
-            wp_send_json_error(['message' => __('Set a Production URL in WP Haven Connect settings first.', 'wphaven-connect')], 400);
+        if (Environments::urlFor($target) === null) {
+            wp_send_json_error(['message' => __('Choose a destination environment (configure them in WP Haven Connect settings first).', 'wphaven-connect')], 400);
         }
         if (ConnectionSecret::get() === null) {
             wp_send_json_error(['message' => __('Set an environment connection secret in WP Haven Connect settings first.', 'wphaven-connect')], 400);
         }
 
         $result = $direction === 'pull'
-            ? $this->doPull($post_id, $preview, $args)
-            : $this->doPush($post_id, $preview, $args);
+            ? $this->doPull($post_id, $target, $preview, $args)
+            : $this->doPush($post_id, $target, $preview, $args);
 
         if (is_wp_error($result)) {
             wp_send_json_error([
@@ -211,14 +213,14 @@ class ContentTransferServiceProvider
      * @param array{publish?: bool, overwrite_conflict?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
-    private function doPush(int $post_id, bool $preview, array $args)
+    private function doPush(int $post_id, string $target, bool $preview, array $args)
     {
         $envelope = (new ContentSerializer())->export($post_id);
         if (is_wp_error($envelope)) {
             return $envelope;
         }
 
-        $client = new TransferClient();
+        $client = TransferClient::forLabel($target);
 
         return $preview ? $client->previewOnRemote($envelope) : $client->push($envelope, $args);
     }
@@ -227,14 +229,14 @@ class ContentTransferServiceProvider
      * @param array{publish?: bool, overwrite_conflict?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
-    private function doPull(int $post_id, bool $preview, array $args)
+    private function doPull(int $post_id, string $target, bool $preview, array $args)
     {
         $content_id = ContentIdentity::get($post_id);
         if ($content_id === null) {
-            return new WP_Error('wphaven_no_link', __('This post has never been transferred, so there is no linked production copy to pull.', 'wphaven-connect'));
+            return new WP_Error('wphaven_no_link', __('This post has never been transferred, so there is no linked copy to pull.', 'wphaven-connect'));
         }
 
-        $envelope = (new TransferClient())->fetchExport($content_id);
+        $envelope = TransferClient::forLabel($target)->fetchExport($content_id);
         if (is_wp_error($envelope)) {
             return $envelope;
         }
@@ -290,9 +292,19 @@ class ContentTransferServiceProvider
             return;
         }
 
+        $environments = Environments::all();
+        if (empty($environments)) {
+            return;
+        }
+
         echo '<div class="wphaven-content-transfer misc-pub-section" style="padding:8px 0;">';
-        echo '<button type="button" class="button wphaven-send-to-production" style="display:block;width:100%;text-align:center;margin-bottom:6px;">' . esc_html__('Send to Production', 'wphaven-connect') . '</button>';
-        echo '<button type="button" class="button wphaven-update-from-production" style="display:block;width:100%;text-align:center;">' . esc_html__('Update from Production', 'wphaven-connect') . '</button>';
+        echo '<select class="wphaven-content-target" style="width:100%;margin-bottom:6px;">';
+        foreach ($environments as $environment) {
+            echo '<option value="' . esc_attr($environment['label']) . '">' . esc_html($environment['label']) . '</option>';
+        }
+        echo '</select>';
+        echo '<button type="button" class="button wphaven-send-to-production" style="display:block;width:100%;text-align:center;margin-bottom:6px;">' . esc_html__('Send', 'wphaven-connect') . '</button>';
+        echo '<button type="button" class="button wphaven-update-from-production" style="display:block;width:100%;text-align:center;">' . esc_html__('Pull', 'wphaven-connect') . '</button>';
         echo '<p class="wphaven-transfer-status description"></p>';
         echo '</div>';
     }
@@ -306,20 +318,22 @@ class ContentTransferServiceProvider
         $post_id = $post instanceof WP_Post ? $post->ID : 0;
 
         return [
-            'ajaxUrl'       => admin_url('admin-ajax.php'),
-            'nonce'         => wp_create_nonce(self::NONCE_ACTION),
-            'action'        => self::AJAX_ACTION,
-            'postId'        => $post_id,
-            'productionUrl' => TransferClient::productionUrl(),
-            'i18n'          => [
-                'sendTitle'     => __('Send to Production', 'wphaven-connect'),
-                'pullTitle'     => __('Update from Production', 'wphaven-connect'),
-                'confirmSend'   => __('Send this content to production? Review the summary before confirming.', 'wphaven-connect'),
-                'confirmPull'   => __('Overwrite this content with the production version?', 'wphaven-connect'),
+            'ajaxUrl'         => admin_url('admin-ajax.php'),
+            'nonce'           => wp_create_nonce(self::NONCE_ACTION),
+            'action'          => self::AJAX_ACTION,
+            'postId'          => $post_id,
+            'environments'    => Environments::labels(),
+            'productionLabel' => Environments::PRODUCTION_LABEL,
+            'i18n'            => [
+                'sendTitle'     => __('Send', 'wphaven-connect'),
+                'pullTitle'     => __('Pull', 'wphaven-connect'),
+                'targetLabel'   => __('Environment', 'wphaven-connect'),
+                'confirmSend'   => __('Send this content to "%s"? Review the summary before confirming.', 'wphaven-connect'),
+                'confirmPull'   => __('Overwrite this content with the version from "%s"?', 'wphaven-connect'),
                 'working'       => __('Working…', 'wphaven-connect'),
-                'conflict'      => __('Production changed more recently than this version. Overwrite anyway?', 'wphaven-connect'),
-                'sent'          => __('Sent to production.', 'wphaven-connect'),
-                'pulled'        => __('Updated from production — reloading to show the new content…', 'wphaven-connect'),
+                'conflict'      => __('The destination changed more recently than this version. Overwrite anyway?', 'wphaven-connect'),
+                'sent'          => __('Sent.', 'wphaven-connect'),
+                'pulled'        => __('Updated — reloading to show the new content…', 'wphaven-connect'),
                 'error'         => __('Transfer failed.', 'wphaven-connect'),
             ],
         ];

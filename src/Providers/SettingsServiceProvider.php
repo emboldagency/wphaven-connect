@@ -2,7 +2,9 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\ContentTransfer\AppName;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
+use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\DatabaseTransfer\DatabaseTransferPanel;
 use WPHavenConnect\UploadsSync\UploadsSyncPanel;
@@ -27,6 +29,10 @@ class SettingsServiceProvider
         add_action('admin_post_wphaven_connect_send_test_email', [$this, 'handleSendTestEmail']);
         // Handle environment connection secret save/regenerate
         add_action('admin_post_wphaven_save_connection_secret', [$this, 'handleConnectionSecret']);
+        // Populate the environment list from the WP Haven API
+        add_action('admin_post_wphaven_populate_environments', [$this, 'handlePopulateEnvironments']);
+        // Seed the app name from the hostname on first load when empty
+        add_action('admin_init', [AppName::class, 'seedIfEmpty']);
         // Enqueue settings page assets
         add_action('admin_enqueue_scripts', [$this, 'enqueueSettingsAssets']);
 
@@ -147,6 +153,17 @@ class SettingsServiceProvider
     {
         register_setting(self::OPTION_NAME, self::OPTION_NAME, [$this, 'sanitize']);
 
+        // --- SECTION: App Name (top) ---
+        add_settings_section(
+            'wphaven_connect_app',
+            __('App Name', 'wphaven-connect'),
+            function () {
+                echo '<p>' . esc_html__('This site\'s WP Haven name (slug). It identifies the site when populating the environment list and is auto-detected from the hostname when possible.', 'wphaven-connect') . '</p>';
+            },
+            'wphaven-connect'
+        );
+        add_settings_field('app_name', __('App name', 'wphaven-connect'), [$this, 'renderAppNameField'], 'wphaven-connect', 'wphaven_connect_app');
+
         // --- SECTION: General Settings ---
         add_settings_section(
             'wphaven_connect_general',
@@ -187,12 +204,12 @@ class SettingsServiceProvider
             'wphaven_connect_connection',
             __('Connection Settings', 'wphaven-connect'),
             function () {
-                echo '<p>' . esc_html__('Connect this environment to others — for example, sending content to production. The environment connection secret below must be identical on every environment.', 'wphaven-connect') . '</p>';
+                echo '<p>' . esc_html__('The environments this site can transfer to and from. Labels are saved lowercase; the one labeled "production" requires typing a confirmation phrase before it can be overwritten. The environment connection secret below must be identical on every environment.', 'wphaven-connect') . '</p>';
             },
             'wphaven-connect'
         );
 
-        add_settings_field('wphaven_production_url', __('Production URL', 'wphaven-connect'), [$this, 'renderProductionUrlField'], 'wphaven-connect', 'wphaven_connect_connection');
+        add_settings_field('environments', __('Environments', 'wphaven-connect'), [$this, 'renderEnvironmentsField'], 'wphaven-connect', 'wphaven_connect_connection');
     }
 
     public function sanitize($input)
@@ -205,8 +222,14 @@ class SettingsServiceProvider
             $output['wphaven_api_base'] = esc_url_raw($input['wphaven_api_base']);
         }
 
-        if (isset($input['wphaven_production_url'])) {
-            $output['wphaven_production_url'] = esc_url_raw(trim($input['wphaven_production_url']));
+        // --- App name (lowercased, alnum/-/_) ---
+        if (! AppName::isLocked() && isset($input['app_name'])) {
+            $output['app_name'] = strtolower(preg_replace('/[^A-Za-z0-9\-_]/', '', trim((string) $input['app_name'])) ?? '');
+        }
+
+        // --- Environments (labels forced lowercase, de-duplicated) ---
+        if (isset($input['environments']) && is_array($input['environments'])) {
+            $output['environments'] = Environments::normalize($input['environments']);
         }
 
         if (isset($input['admin_login_slug'])) {
@@ -260,7 +283,8 @@ class SettingsServiceProvider
             'wphaven_404_redirect' => '',
             'elevated_emails' => [],
             'wphaven_api_base' => '',
-            'wphaven_production_url' => '',
+            'app_name' => '',
+            'environments' => [],
             'show_environment_indicator' => true,
             'mail_mode' => 'auto', // Default to Auto (Safety Net active)
         ]);
@@ -450,6 +474,20 @@ class SettingsServiceProvider
                 do_settings_sections('wphaven-connect');
                 submit_button();
                 ?>
+            </form>
+
+            <?php // Populate environments from WP Haven ?>
+            <?php $populate = isset($_GET['wphaven_env']) ? sanitize_key(wp_unslash($_GET['wphaven_env'])) : ''; ?>
+            <?php if ($populate === 'populated'): ?>
+                <div class="notice notice-success is-dismissible"><p><?php echo esc_html__('Environment list updated from WP Haven.', 'wphaven-connect'); ?></p></div>
+            <?php elseif ($populate === 'error'): ?>
+                <div class="notice notice-error is-dismissible"><p><?php echo esc_html__('Could not fetch environments from WP Haven. Check the app name and API base.', 'wphaven-connect'); ?></p></div>
+            <?php endif; ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:8px 0 24px;">
+                <?php wp_nonce_field('wphaven_populate_environments', 'wphaven_populate_nonce'); ?>
+                <input type="hidden" name="action" value="wphaven_populate_environments">
+                <?php submit_button(__('Populate Environment List from WP Haven', 'wphaven-connect'), 'secondary', 'submit', false); ?>
+                <span class="description"><?php echo esc_html__('Fetches this site\'s production/staging/maintenance domains and updates matching rows (your custom rows are kept). Save any manual edits first.', 'wphaven-connect'); ?></span>
             </form>
 
             <hr>
@@ -643,6 +681,85 @@ class SettingsServiceProvider
         exit;
     }
 
+    public function handlePopulateEnvironments()
+    {
+        $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
+        if (! current_user_can('manage_options') || ! $is_elevated) {
+            wp_die(__('Unauthorized: You do not have permission to perform this action.', 'wphaven-connect'));
+        }
+
+        $nonce = isset($_POST['wphaven_populate_nonce']) ? wp_unslash($_POST['wphaven_populate_nonce']) : '';
+        if (empty($nonce) || ! wp_verify_nonce(sanitize_text_field($nonce), 'wphaven_populate_environments')) {
+            wp_die('Invalid Nonce');
+        }
+
+        $incoming = $this->fetchEnvironmentsFromApi();
+        $result = 'error';
+
+        if (is_array($incoming) && ! empty($incoming)) {
+            $opts = get_option(self::OPTION_NAME, []);
+            if (! is_array($opts)) {
+                $opts = [];
+            }
+            $existing = isset($opts['environments']) && is_array($opts['environments']) ? $opts['environments'] : [];
+            $opts['environments'] = Environments::merge($existing, $incoming);
+            update_option(self::OPTION_NAME, $opts);
+            $result = 'populated';
+        }
+
+        $redirect = add_query_arg(
+            ['page' => 'wphaven-connect', 'tab' => 'settings', 'wphaven_env' => $result],
+            admin_url('options-general.php')
+        );
+        wp_safe_redirect($redirect);
+        exit;
+    }
+
+    /**
+     * Fetch this site's sibling environments (stage + domain) from the WP Haven
+     * API. Returns an empty array on any failure.
+     *
+     * @return array<int, array{stage: string, domain: string}>
+     */
+    private function fetchEnvironmentsFromApi(): array
+    {
+        $endpoint = $this->getApiBase() . '/environments';
+        $endpoint = add_query_arg([
+            'app_name' => AppName::getOrDetect(),
+            'domain'   => wp_parse_url(site_url(), PHP_URL_HOST),
+        ], $endpoint);
+
+        $response = wp_remote_get($endpoint, ['timeout' => 20]);
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            return [];
+        }
+
+        $data = json_decode(wp_remote_retrieve_body($response), true);
+        if (! is_array($data) || ! isset($data['environments']) || ! is_array($data['environments'])) {
+            return [];
+        }
+
+        return $data['environments'];
+    }
+
+    /**
+     * Resolve the WP Haven API base (constant > option > default), matching
+     * SupportTicketServiceProvider.
+     */
+    private function getApiBase(): string
+    {
+        if (defined('WPHAVEN_API_BASE') && WPHAVEN_API_BASE) {
+            return rtrim(WPHAVEN_API_BASE, '/') . '/api/v1/wphaven-connect';
+        }
+
+        $opts = $this->getOptions();
+        if (! empty($opts['wphaven_api_base'])) {
+            return rtrim($opts['wphaven_api_base'], '/') . '/api/v1/wphaven-connect';
+        }
+
+        return 'https://wphaven.app/api/v1/wphaven-connect';
+    }
+
     public function renderApiBaseField()
     {
         $opts = $this->getOptions();
@@ -662,23 +779,62 @@ class SettingsServiceProvider
         echo '<p class="description">' . esc_html__('Base URL for the WP Haven API. Defaults to https://wphaven.app/api if empty.', 'wphaven-connect') . '</p>';
     }
 
-    public function renderProductionUrlField()
+    public function renderAppNameField()
     {
-        $opts = $this->getOptions();
-        $name = self::OPTION_NAME . '[wphaven_production_url]';
-        $is_const = defined(TransferClient::PRODUCTION_URL_CONSTANT);
-        $value = $is_const ? constant(TransferClient::PRODUCTION_URL_CONSTANT) : $opts['wphaven_production_url'];
+        $name = self::OPTION_NAME . '[app_name]';
+        $is_const = AppName::isLocked();
+        $value = AppName::getOrDetect();
         $readonly = $is_const ? 'readonly' : '';
-        $extra = $is_const ? ' ' . $this->getConstantOverrideHtml(TransferClient::PRODUCTION_URL_CONSTANT) : '';
+        $extra = $is_const ? ' ' . $this->getConstantOverrideHtml(AppName::CONSTANT_NAME) : '';
 
         echo sprintf(
-            '<input type="url" name="%s" value="%s" class="regular-text" placeholder="https://example.com" %s>%s',
+            '<input type="text" name="%s" value="%s" class="regular-text" placeholder="e.g. nucamprv" %s>%s',
             esc_attr($name),
             esc_attr($value),
             $readonly,
             $extra
         );
-        echo '<p class="description">' . esc_html__('The production site content is sent to and pulled from. Safe to set on every environment, including production itself.', 'wphaven-connect') . '</p>';
+        echo '<p class="description">' . esc_html__('The site name as it appears in WP Haven. Leave blank to auto-detect from the hostname.', 'wphaven-connect') . '</p>';
+    }
+
+    public function renderEnvironmentsField()
+    {
+        $environments = Environments::all();
+        // Render existing rows plus two blank rows for adding more.
+        $rows = $environments;
+        for ($i = 0; $i < 2; $i++) {
+            $rows[] = ['label' => '', 'url' => ''];
+        }
+        $base = self::OPTION_NAME . '[environments]';
+        ?>
+        <table class="widefat striped" style="max-width:640px;">
+            <thead>
+                <tr>
+                    <th style="width:30%;"><?php echo esc_html__('Label', 'wphaven-connect'); ?></th>
+                    <th><?php echo esc_html__('URL', 'wphaven-connect'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($rows as $i => $row): ?>
+                    <tr>
+                        <td>
+                            <input type="text" name="<?php echo esc_attr($base . '[' . $i . '][label]'); ?>"
+                                value="<?php echo esc_attr($row['label']); ?>" class="regular-text" placeholder="production"
+                                style="width:100%;">
+                        </td>
+                        <td>
+                            <input type="url" name="<?php echo esc_attr($base . '[' . $i . '][url]'); ?>"
+                                value="<?php echo esc_attr($row['url']); ?>" class="regular-text" placeholder="https://example.com"
+                                style="width:100%;">
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <p class="description">
+            <?php echo esc_html__('Standard labels: production, staging, maintenance. Add extras (e.g. "new"/"old") during server moves. Blank rows and duplicate labels are dropped on save; labels are lowercased.', 'wphaven-connect'); ?>
+        </p>
+        <?php
     }
 
     public function renderAdminLoginSlugField()

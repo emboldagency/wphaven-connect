@@ -14,13 +14,28 @@
 
   var actionButtons = Array.prototype.slice.call(document.querySelectorAll(".wphaven-uploads-action"));
   var overwrite = document.getElementById("wphaven-uploads-overwrite");
+  var targetSelect = document.getElementById("wphaven-uploads-target");
   var progressBox = document.querySelector(".wphaven-uploads-progress");
   var progressBar = document.querySelector(".wphaven-uploads-progress-bar");
   var progressLabel = document.querySelector(".wphaven-uploads-progress-label");
   var logBox = document.querySelector(".wphaven-uploads-log");
 
-  if (!actionButtons.length) {
+  if (!actionButtons.length || !targetSelect) {
     return;
+  }
+
+  function target() {
+    return targetSelect.value;
+  }
+
+  function targetName() {
+    return targetSelect.options[targetSelect.selectedIndex].text;
+  }
+
+  function relabel() {
+    actionButtons.forEach(function (btn) {
+      btn.textContent = fmt(btn.dataset.direction === "pull" ? i18n.pullFrom : i18n.pushTo, targetName());
+    });
   }
 
   /** Minimal sprintf supporting %s (sequential) and %1$s (positional). */
@@ -65,6 +80,7 @@
     var body = new FormData();
     body.append("action", cfg.action);
     body.append("nonce", cfg.nonce);
+    body.append("target", target());
     Object.keys(params).forEach(function (key) {
       body.append(key, params[key]);
     });
@@ -78,7 +94,10 @@
   }
 
   function run(direction) {
-    if (!window.confirm(direction === "pull" ? i18n.confirmPull : i18n.confirmPush)) {
+    var confirmMsg = direction === "pull"
+      ? fmt(i18n.confirmPull, targetName())
+      : fmt(i18n.confirmPush, targetName());
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
@@ -141,4 +160,7 @@
       run(btn.dataset.direction);
     });
   });
+
+  targetSelect.addEventListener("change", relabel);
+  relabel();
 })();

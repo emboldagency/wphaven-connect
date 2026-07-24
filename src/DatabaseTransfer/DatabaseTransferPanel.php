@@ -3,7 +3,7 @@
 namespace WPHavenConnect\DatabaseTransfer;
 
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
-use WPHavenConnect\ContentTransfer\TransferClient;
+use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\Providers\DatabaseTransferServiceProvider;
 
 /**
@@ -15,9 +15,9 @@ class DatabaseTransferPanel
 {
     public static function render(): void
     {
-        $production_url = TransferClient::productionUrl();
-        $has_secret     = ConnectionSecret::get() !== null;
-        $tables         = (new TableRepository())->listTransferableTables();
+        $environments = Environments::all();
+        $has_secret   = ConnectionSecret::get() !== null;
+        $tables       = (new TableRepository())->listTransferableTables();
         ?>
         <h2><?php echo esc_html__('Database Transfer', 'wphaven-connect'); ?></h2>
 
@@ -28,13 +28,13 @@ class DatabaseTransferPanel
             </p>
         </div>
 
-        <?php if (! $production_url || ! $has_secret): ?>
+        <?php if (empty($environments) || ! $has_secret): ?>
             <div class="notice notice-warning inline">
                 <p>
                     <?php
                     echo wp_kses_post(sprintf(
                         /* translators: %s: settings tab URL */
-                        __('Set a Production URL and an environment connection secret on the <a href="%s">Settings</a> tab first.', 'wphaven-connect'),
+                        __('Add at least one environment and an environment connection secret on the <a href="%s">Settings</a> tab first.', 'wphaven-connect'),
                         esc_url(admin_url('options-general.php?page=wphaven-connect&tab=settings'))
                     ));
                     ?>
@@ -43,14 +43,13 @@ class DatabaseTransferPanel
             <?php return; ?>
         <?php endif; ?>
 
-        <p class="description">
-            <?php
-            echo esc_html(sprintf(
-                /* translators: %s: production URL */
-                __('Paired production site: %s', 'wphaven-connect'),
-                $production_url
-            ));
-            ?>
+        <p>
+            <label for="wphaven-db-target"><strong><?php echo esc_html__('Environment', 'wphaven-connect'); ?></strong></label><br>
+            <select id="wphaven-db-target">
+                <?php foreach ($environments as $environment): ?>
+                    <option value="<?php echo esc_attr($environment['label']); ?>"><?php echo esc_html($environment['label']); ?></option>
+                <?php endforeach; ?>
+            </select>
         </p>
 
         <table class="widefat striped" style="max-width:760px;margin:12px 0;">
@@ -82,10 +81,9 @@ class DatabaseTransferPanel
             <span class="description">
                 <?php
                 echo esc_html(sprintf(
-                    /* translators: 1: push phrase, 2: pull phrase */
-                    __('To send, type: “%1$s”. To pull, type: “%2$s”.', 'wphaven-connect'),
-                    DatabaseTransferServiceProvider::PUSH_PHRASE,
-                    DatabaseTransferServiceProvider::PULL_PHRASE
+                    /* translators: %s: confirmation phrase */
+                    __('Pushing to the “production” environment requires typing: “%s”. Other transfers just ask for a confirmation.', 'wphaven-connect'),
+                    DatabaseTransferServiceProvider::PUSH_PHRASE
                 ));
                 ?>
             </span><br>
@@ -94,12 +92,8 @@ class DatabaseTransferPanel
         </p>
 
         <p class="submit" style="display:flex;gap:8px;">
-            <button type="button" class="button button-primary wphaven-db-action" data-direction="push" disabled>
-                <?php echo esc_html__('Send to Production', 'wphaven-connect'); ?>
-            </button>
-            <button type="button" class="button wphaven-db-action" data-direction="pull" disabled>
-                <?php echo esc_html__('Pull from Production', 'wphaven-connect'); ?>
-            </button>
+            <button type="button" class="button button-primary wphaven-db-action" data-direction="push"></button>
+            <button type="button" class="button wphaven-db-action" data-direction="pull"></button>
         </p>
 
         <div class="wphaven-db-progress" style="display:none;max-width:760px;">

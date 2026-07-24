@@ -16,6 +16,11 @@
   var cfg = window.wphavenContentTransfer || {};
   var i18n = cfg.i18n || {};
 
+  /** Minimal sprintf supporting %s. */
+  function fmt(template, value) {
+    return String(template).replace("%s", value !== undefined ? value : "");
+  }
+
   /**
    * POST to admin-ajax and resolve with the parsed JSON response.
    */
@@ -80,22 +85,26 @@
    * @param {number} postId
    * @param {function(string)} report status callback
    */
-  function runFlow(direction, postId, report) {
+  function runFlow(direction, postId, target, targetName, report) {
     if (!postId) {
       report(i18n.error + " (no post id)");
+      return;
+    }
+    if (!target) {
+      report(i18n.error);
       return;
     }
 
     report(i18n.working);
 
-    request({ direction: direction, post_id: postId, preview: 1 })
+    request({ direction: direction, post_id: postId, target: target, preview: 1 })
       .then(function (res) {
         if (!res || !res.success) {
           throw new Error((res && res.data && res.data.message) || i18n.error);
         }
 
         var diff = res.data;
-        var intro = direction === "pull" ? i18n.confirmPull : i18n.confirmSend;
+        var intro = fmt(direction === "pull" ? i18n.confirmPull : i18n.confirmSend, targetName);
         var message = intro + "\n\n" + summarize(diff, direction);
         var overwriteConflict = false;
 
@@ -113,6 +122,7 @@
         return request({
           direction: direction,
           post_id: postId,
+          target: target,
           preview: 0,
           overwrite_conflict: overwriteConflict ? 1 : 0,
         });
@@ -130,6 +140,7 @@
               request({
                 direction: direction,
                 post_id: postId,
+                target: target,
                 preview: 0,
                 overwrite_conflict: 1,
               }).then(function (r) {
@@ -192,16 +203,24 @@
       }
     };
 
+    var targetSelect = container.querySelector(".wphaven-content-target");
+    var target = function () {
+      return targetSelect ? targetSelect.value : (cfg.environments && cfg.environments[0]) || "";
+    };
+    var targetName = function () {
+      return targetSelect ? targetSelect.options[targetSelect.selectedIndex].text : target();
+    };
+
     var send = container.querySelector(".wphaven-send-to-production");
     var pull = container.querySelector(".wphaven-update-from-production");
     if (send) {
       send.addEventListener("click", function () {
-        runFlow("push", currentPostId(), report);
+        runFlow("push", currentPostId(), target(), targetName(), report);
       });
     }
     if (pull) {
       pull.addEventListener("click", function () {
-        runFlow("pull", currentPostId(), report);
+        runFlow("pull", currentPostId(), target(), targetName(), report);
       });
     }
   }
@@ -215,17 +234,22 @@
     var Button = wp.components.Button;
     var useState = wp.element.useState;
 
+    var environments = cfg.environments || [];
+
     var Panel = function () {
       var statePair = useState("");
       var statusText = statePair[0];
       var setStatus = statePair[1];
+      var targetPair = useState(environments[0] || "");
+      var target = targetPair[0];
+      var setTarget = targetPair[1];
 
       var trigger = function (direction) {
         if (hasUnsavedEdits()) {
           setStatus("Save your changes first.");
           return;
         }
-        runFlow(direction, currentPostId(), setStatus);
+        runFlow(direction, currentPostId(), target, target, setStatus);
       };
 
       return el(
@@ -242,6 +266,21 @@
               width: "100%",
             },
           },
+          environments.length > 1
+            ? el(
+                "select",
+                {
+                  value: target,
+                  style: { width: "100%" },
+                  onChange: function (e) {
+                    setTarget(e.target.value);
+                  },
+                },
+                environments.map(function (label) {
+                  return el("option", { value: label, key: label }, label);
+                })
+              )
+            : null,
           el(
             Button,
             {
