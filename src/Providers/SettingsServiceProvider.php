@@ -486,8 +486,8 @@ class SettingsServiceProvider
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:8px 0 24px;">
                 <?php wp_nonce_field('wphaven_populate_environments', 'wphaven_populate_nonce'); ?>
                 <input type="hidden" name="action" value="wphaven_populate_environments">
+                <p class="description" style="margin:0 0 6px;"><?php echo esc_html__('Fetches this site\'s production/staging/maintenance domains and updates matching rows (your custom rows are kept). Save any manual edits first.', 'wphaven-connect'); ?></p>
                 <?php submit_button(__('Populate Environment List from WP Haven', 'wphaven-connect'), 'secondary', 'submit', false); ?>
-                <span class="description"><?php echo esc_html__('Fetches this site\'s production/staging/maintenance domains and updates matching rows (your custom rows are kept). Save any manual edits first.', 'wphaven-connect'); ?></span>
             </form>
 
             <hr>
@@ -810,8 +810,8 @@ class SettingsServiceProvider
         <table class="widefat striped" style="max-width:640px;">
             <thead>
                 <tr>
-                    <th style="width:30%;"><?php echo esc_html__('Label', 'wphaven-connect'); ?></th>
-                    <th><?php echo esc_html__('URL', 'wphaven-connect'); ?></th>
+                    <th style="width:30%;padding-left:16px;"><?php echo esc_html__('Label', 'wphaven-connect'); ?></th>
+                    <th style="padding-left:16px;"><?php echo esc_html__('URL', 'wphaven-connect'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -832,7 +832,7 @@ class SettingsServiceProvider
             </tbody>
         </table>
         <p class="description">
-            <?php echo esc_html__('Standard labels: production, staging, maintenance. Add extras (e.g. "new"/"old") during server moves. Blank rows and duplicate labels are dropped on save; labels are lowercased.', 'wphaven-connect'); ?>
+            <?php echo esc_html__('Standard labels: production, staging, maintenance. Add extras (e.g. "new"/"old") during server moves. Blank rows and duplicate labels are dropped on save.', 'wphaven-connect'); ?>
         </p>
         <?php
     }
