@@ -14,6 +14,7 @@
 
   var actionButtons = Array.prototype.slice.call(document.querySelectorAll(".wphaven-uploads-action"));
   var overwrite = document.getElementById("wphaven-uploads-overwrite");
+  var register = document.getElementById("wphaven-uploads-register");
   var targetSelect = document.getElementById("wphaven-uploads-target");
   var progressBox = document.querySelector(".wphaven-uploads-progress");
   var progressBar = document.querySelector(".wphaven-uploads-progress-bar");
@@ -107,7 +108,12 @@
     }
     setProgress(0, i18n.planning);
 
-    step({ phase: "plan", direction: direction, overwrite: overwrite && overwrite.checked ? 1 : 0 })
+    step({
+      phase: "plan",
+      direction: direction,
+      overwrite: overwrite && overwrite.checked ? 1 : 0,
+      register: register && register.checked ? 1 : 0,
+    })
       .then(function (res) {
         if (!res || !res.success) {
           throw new Error((res && res.data && res.data.message) || i18n.error);

@@ -175,15 +175,16 @@ class TransferClient
      *
      * @return array<string, mixed>|WP_Error
      */
-    public function uploadsReceive(string $path, int $offset, string $data_base64, int $size, int $mtime, bool $done)
+    public function uploadsReceive(string $path, int $offset, string $data_base64, int $size, int $mtime, bool $done, bool $register)
     {
         return $this->request('/uploads/receive', [
-            'path'   => $path,
-            'offset' => $offset,
-            'data'   => $data_base64,
-            'size'   => $size,
-            'mtime'  => $mtime,
-            'done'   => $done,
+            'path'     => $path,
+            'offset'   => $offset,
+            'data'     => $data_base64,
+            'size'     => $size,
+            'mtime'    => $mtime,
+            'done'     => $done,
+            'register' => $register,
         ]);
     }
 

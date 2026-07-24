@@ -56,6 +56,16 @@ class UploadsSyncPanel
             </label>
         </p>
 
+        <p style="max-width:640px;">
+            <label>
+                <input type="checkbox" id="wphaven-uploads-register">
+                <?php echo esc_html__('Add new files to the destination Media Library', 'wphaven-connect'); ?>
+            </label>
+            <span class="description" style="display:block;margin-top:4px;">
+                <?php echo esc_html__('Registers transferred originals as attachments so they appear in the Media Library. They get NEW attachment IDs on the destination, so posts that reference an image by ID won\'t link to them. To keep IDs identical to the source, leave this OFF and instead run a Database Transfer of wp_posts and wp_postmeta (which carry the attachment rows and their metadata) — that brings them over with the original IDs, but overwrites those whole tables.', 'wphaven-connect'); ?>
+            </span>
+        </p>
+
         <p class="submit" style="display:flex;gap:8px;">
             <button type="button" class="button button-primary wphaven-uploads-action" data-direction="push"></button>
             <button type="button" class="button wphaven-uploads-action" data-direction="pull"></button>

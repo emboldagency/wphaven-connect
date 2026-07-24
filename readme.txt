@@ -15,6 +15,7 @@ Provides functionality to connect to the remote maintenance and management platf
 == Changelog ==
 
 = 0.26.0 =
+* Uploads Sync gains an optional "Add new files to the destination Media Library" toggle (off by default) that registers transferred originals as attachments. Registered files get new IDs on the destination; to keep IDs matching the source, run a Database Transfer of wp_posts and wp_postmeta instead (overwrites those whole tables).
 * Transfers now target a chosen environment, not just production. Configure a modular list of environments (production/staging/maintenance, plus extras like "new"/"old" for server moves) and pick the destination when you push or pull content, tables, or uploads.
 * Add an "App Name" setting at the top of the settings page — auto-detected from the hostname on staging/maintenance/dev — used to identify the site and populate the environment list.
 * Add a "Populate Environment List from WP Haven" button that fetches this site's environment domains and updates matching rows (custom rows are kept).

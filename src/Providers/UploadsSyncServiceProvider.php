@@ -109,6 +109,9 @@ class UploadsSyncServiceProvider
 
         if ($request->get_param('done')) {
             $repo->setMtime($path, (int) $request->get_param('mtime'));
+            if ($request->get_param('register')) {
+                $repo->registerAttachment($path);
+            }
         }
 
         return new WP_REST_Response(['ok' => true, 'written' => strlen($bytes)], 200);
@@ -179,6 +182,7 @@ class UploadsSyncServiceProvider
         set_transient(self::PLAN_TRANSIENT_PREFIX . $token, [
             'direction' => $direction,
             'target'    => $target,
+            'register'  => ! empty($_POST['register']),
             'files'     => $plan_files,
         ], HOUR_IN_SECONDS);
 
@@ -207,12 +211,13 @@ class UploadsSyncServiceProvider
             return ['done' => true, 'index' => $index, 'offset' => 0, 'total' => $total];
         }
 
-        $client = TransferClient::forLabel($plan['target'] ?? '');
-        $file   = $files[$index];
-        $budget = $this->chunkBytes();
+        $client   = TransferClient::forLabel($plan['target'] ?? '');
+        $register = ! empty($plan['register']);
+        $file     = $files[$index];
+        $budget   = $this->chunkBytes();
         $result = $plan['direction'] === 'pull'
-            ? $this->pullChunk($client, $file, $offset, $budget)
-            : $this->pushChunk($client, $file, $offset, $budget);
+            ? $this->pullChunk($client, $file, $offset, $budget, $register)
+            : $this->pushChunk($client, $file, $offset, $budget, $register);
 
         if (is_wp_error($result)) {
             // Skip this file and continue; surface a warning.
@@ -237,7 +242,7 @@ class UploadsSyncServiceProvider
      * @param array{path: string, size: int, mtime: int} $file
      * @return array{eof: bool, length: int}|WP_Error
      */
-    private function pushChunk(TransferClient $client, array $file, int $offset, int $budget)
+    private function pushChunk(TransferClient $client, array $file, int $offset, int $budget, bool $register)
     {
         $read = (new UploadsRepository())->readRange($file['path'], $offset, $budget);
         if (is_wp_error($read)) {
@@ -251,7 +256,8 @@ class UploadsSyncServiceProvider
             $read['data'],
             (int) $file['size'],
             (int) $file['mtime'],
-            (bool) $read['eof']
+            (bool) $read['eof'],
+            $register
         );
         if (is_wp_error($sent)) {
             return $sent;
@@ -266,7 +272,7 @@ class UploadsSyncServiceProvider
      * @param array{path: string, size: int, mtime: int} $file
      * @return array{eof: bool, length: int}|WP_Error
      */
-    private function pullChunk(TransferClient $client, array $file, int $offset, int $budget)
+    private function pullChunk(TransferClient $client, array $file, int $offset, int $budget, bool $register)
     {
         $fetch = $client->uploadsFetch($file['path'], $offset, $budget);
         if (is_wp_error($fetch)) {
@@ -287,6 +293,9 @@ class UploadsSyncServiceProvider
         $eof = ! empty($fetch['eof']);
         if ($eof) {
             $repo->setMtime($file['path'], (int) $file['mtime']);
+            if ($register) {
+                $repo->registerAttachment($file['path']);
+            }
         }
 
         return ['eof' => $eof, 'length' => strlen($bytes)];

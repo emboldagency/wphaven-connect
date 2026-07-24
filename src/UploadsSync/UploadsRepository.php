@@ -180,6 +180,60 @@ class UploadsRepository
     }
 
     /**
+     * Register a synced file as a Media Library attachment if it is a media
+     * original with no existing attachment. Size variants (-150x150, -scaled,
+     * etc.) and already-registered files are skipped. New attachments get new
+     * ids on this site (see the Uploads tab note).
+     */
+    public function registerAttachment(string $relative): void
+    {
+        $full = $this->safePath($relative);
+        if (is_wp_error($full) || ! is_file($full)) {
+            return;
+        }
+
+        $filename = wp_basename($full);
+        // Skip WordPress-generated derivatives, not standalone attachments.
+        if (preg_match('/-\d+x\d+\.[A-Za-z0-9]+$/', $filename)
+            || preg_match('/-(?:scaled|rotated)\.[A-Za-z0-9]+$/', $filename)
+            || preg_match('/-e\d{10,}\.[A-Za-z0-9]+$/', $filename)) {
+            return;
+        }
+
+        $type = wp_check_filetype($filename);
+        if (empty($type['type'])) {
+            return;
+        }
+
+        $attached_file = ltrim(str_replace('\\', '/', $relative), '/');
+        $existing = get_posts([
+            'post_type'      => 'attachment',
+            'post_status'    => 'inherit',
+            'meta_key'       => '_wp_attached_file',
+            'meta_value'     => $attached_file,
+            'posts_per_page' => 1,
+            'fields'         => 'ids',
+            'no_found_rows'  => true,
+        ]);
+        if (! empty($existing)) {
+            return;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+
+        $attachment_id = wp_insert_attachment([
+            'post_mime_type' => $type['type'],
+            'post_title'     => sanitize_text_field(pathinfo($filename, PATHINFO_FILENAME)),
+            'post_status'    => 'inherit',
+        ], $full);
+        if (is_wp_error($attachment_id) || ! $attachment_id) {
+            return;
+        }
+
+        wp_update_attachment_metadata($attachment_id, wp_generate_attachment_metadata($attachment_id, $full));
+    }
+
+    /**
      * Resolve a relative path to an absolute path confined within uploads, or a
      * WP_Error if it is malformed or tries to escape.
      *
