@@ -50,6 +50,34 @@ class Environments
         return array_map(static fn ($e) => $e['url'], self::all());
     }
 
+    /**
+     * Environments that can be a transfer *target* — i.e. everything except this
+     * site itself (matched by host), since transferring a site to itself makes
+     * no sense.
+     *
+     * @return array<int, array{label: string, url: string, is_production: bool}>
+     */
+    public static function selectableTargets(): array
+    {
+        $self = strtolower((string) wp_parse_url(site_url(), PHP_URL_HOST));
+
+        return array_values(array_filter(self::all(), static function ($environment) use ($self) {
+            $host = strtolower((string) wp_parse_url($environment['url'], PHP_URL_HOST));
+
+            return $host !== '' && $host !== $self;
+        }));
+    }
+
+    /**
+     * Labels of the selectable targets.
+     *
+     * @return string[]
+     */
+    public static function selectableTargetLabels(): array
+    {
+        return array_map(static fn ($e) => $e['label'], self::selectableTargets());
+    }
+
     public static function urlFor(string $label): ?string
     {
         $label = self::cleanLabel($label);

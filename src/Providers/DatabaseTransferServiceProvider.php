@@ -130,13 +130,13 @@ class DatabaseTransferServiceProvider
 
         $source = esc_url_raw((string) $request->get_param('source_site_url'));
         $froms = array_merge([$source], Environments::allUrls());
-        $replaced = (new SearchReplace($froms, site_url()))
+        $stats = (new SearchReplace($froms, site_url()))
             ->replaceInTable($repo->wpdb(), $repo->stageName($base), $repo->primaryKey($full));
 
         $repo->atomicSwap($base, $full);
         $repo->dropBackup($base);
 
-        return new WP_REST_Response(['ok' => true, 'replaced' => $replaced], 200);
+        return new WP_REST_Response(['ok' => true, 'replaced' => $stats['rows']], 200);
     }
 
     /**
@@ -280,12 +280,12 @@ class DatabaseTransferServiceProvider
         // finalize — rewrite the source (peer) domain, and any other known
         // environment domain, to this site's.
         $froms = array_merge([(string) $client->peerUrl()], Environments::allUrls());
-        $replaced = (new SearchReplace($froms, site_url()))
+        $stats = (new SearchReplace($froms, site_url()))
             ->replaceInTable($repo->wpdb(), $repo->stageName($base), $repo->primaryKey($full));
         $repo->atomicSwap($base, $full);
         $repo->dropBackup($base);
 
-        return ['phase' => 'done', 'done' => true, 'replaced' => $replaced];
+        return ['phase' => 'done', 'done' => true, 'replaced' => $stats['rows']];
     }
 
     public function enqueueAssets(string $hook): void

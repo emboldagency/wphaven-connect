@@ -14,7 +14,7 @@ class RefreshPanel
 {
     public static function render(): void
     {
-        $environments = Environments::all();
+        $environments = Environments::selectableTargets();
         $has_secret   = ConnectionSecret::get() !== null;
         ?>
         <h2><?php echo esc_html__('Environment Refresh', 'wphaven-connect'); ?></h2>

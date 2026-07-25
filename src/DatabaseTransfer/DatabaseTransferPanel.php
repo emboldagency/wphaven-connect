@@ -15,7 +15,7 @@ class DatabaseTransferPanel
 {
     public static function render(): void
     {
-        $environments = Environments::all();
+        $environments = Environments::selectableTargets();
         $has_secret   = ConnectionSecret::get() !== null;
         $tables       = (new TableRepository())->listTransferableTables();
         ?>

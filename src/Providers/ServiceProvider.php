@@ -29,6 +29,7 @@ class ServiceProvider
         LiveDomainSwapProvider::class,
         PhpInfoServiceProvider::class,
         RefreshServiceProvider::class,
+        SearchReplaceServiceProvider::class,
         ServerInfoServiceProvider::class,
         SettingsServiceProvider::class,
         SiteHealthServiceProvider::class,

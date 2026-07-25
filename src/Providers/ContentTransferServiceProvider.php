@@ -292,7 +292,7 @@ class ContentTransferServiceProvider
             return;
         }
 
-        $environments = Environments::all();
+        $environments = Environments::selectableTargets();
         if (empty($environments)) {
             return;
         }
@@ -322,7 +322,7 @@ class ContentTransferServiceProvider
             'nonce'           => wp_create_nonce(self::NONCE_ACTION),
             'action'          => self::AJAX_ACTION,
             'postId'          => $post_id,
-            'environments'    => Environments::labels(),
+            'environments'    => Environments::selectableTargetLabels(),
             'productionLabel' => Environments::PRODUCTION_LABEL,
             'i18n'            => [
                 'sendTitle'     => __('Send', 'wphaven-connect'),

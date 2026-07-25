@@ -8,6 +8,7 @@ use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\DatabaseTransfer\DatabaseTransferPanel;
 use WPHavenConnect\Refresh\RefreshPanel;
+use WPHavenConnect\SearchReplace\SearchReplacePanel;
 use WPHavenConnect\UploadsSync\UploadsSyncPanel;
 use WPHavenConnect\Utilities\ElevatedUsers;
 use WPHavenConnect\Utilities\Environment;
@@ -375,7 +376,7 @@ class SettingsServiceProvider
 
             <?php
             $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
-            if (! in_array($active_tab, ['settings', 'database', 'uploads', 'refresh'], true)) {
+            if (! in_array($active_tab, ['settings', 'database', 'uploads', 'refresh', 'search-replace'], true)) {
                 $active_tab = 'settings';
             }
             ?>
@@ -396,6 +397,10 @@ class SettingsServiceProvider
                     class="nav-tab <?php echo $active_tab === 'refresh' ? 'nav-tab-active' : ''; ?>">
                     <?php echo esc_html__('Refresh', 'wphaven-connect'); ?>
                 </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=search-replace')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'search-replace' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Search & Replace', 'wphaven-connect'); ?>
+                </a>
             </h2>
 
             <?php
@@ -411,6 +416,11 @@ class SettingsServiceProvider
             }
             if ($active_tab === 'refresh') {
                 $this->renderRefreshTab();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'search-replace') {
+                SearchReplacePanel::render();
                 echo '</div>';
                 return;
             }

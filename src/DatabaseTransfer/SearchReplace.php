@@ -18,6 +18,12 @@ class SearchReplace
     /** @var array<int, array{0: string, 1: string}> search/replace pairs */
     private array $pairs = [];
 
+    /** Shield ASSET_URL media from rewriting (URL mode only). */
+    private bool $shieldAsset = true;
+
+    /** Running count of individual string replacements in the last table pass. */
+    private int $replacements = 0;
+
     /**
      * @param string|array<int, string> $from One or more source URLs to rewrite.
      */
@@ -27,6 +33,21 @@ class SearchReplace
         foreach ((array) $from as $source) {
             $this->addPair((string) $source, $to);
         }
+    }
+
+    /**
+     * Build a plain literal search/replace (no URL/protocol-relative expansion,
+     * no ASSET_URL shielding) — for the general Search & Replace tool.
+     */
+    public static function literal(string $search, string $replace): self
+    {
+        $instance = new self([], '');
+        $instance->shieldAsset = false;
+        if ($search !== '') {
+            $instance->pairs = [[$search, $replace]];
+        }
+
+        return $instance;
     }
 
     private function addPair(string $from, string $to): void
@@ -101,15 +122,16 @@ class SearchReplace
     private function replaceString(string $value): string
     {
         // Shield ASSET_URL-hosted media (served from production) so its URLs are
-        // never rewritten to another environment.
+        // never rewritten to another environment. URL mode only.
         $token = '%%WPHAVEN_ASSET_URL%%';
-        $asset = (defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
+        $asset = ($this->shieldAsset && defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
         if ($asset !== '' && strpos($value, $asset) !== false) {
             $value = str_replace($asset, $token, $value);
         }
 
         foreach ($this->pairs as [$search, $replacement]) {
             if ($search !== '' && strpos($value, $search) !== false) {
+                $this->replacements += substr_count($value, $search);
                 $value = str_replace($search, $replacement, $value);
             }
         }
@@ -122,17 +144,18 @@ class SearchReplace
     }
 
     /**
-     * Apply the replacement across every row of a table, updating only rows that
-     * actually changed. Requires a single-column primary key; tables without one
-     * are skipped (they hold no URLs in practice).
+     * Apply the replacement across every row of a table. Requires a
+     * single-column primary key; tables without one are skipped. With
+     * $dry_run = true it counts without writing.
      *
      * @param \wpdb $wpdb
-     * @return int Number of rows updated.
+     * @return array{rows: int, replacements: int}
      */
-    public function replaceInTable($wpdb, string $table, ?string $primary_key): int
+    public function replaceInTable($wpdb, string $table, ?string $primary_key, bool $dry_run = false): array
     {
+        $this->replacements = 0;
         if (! $this->hasWork() || $primary_key === null) {
-            return 0;
+            return ['rows' => 0, 'replacements' => 0];
         }
 
         $changed = 0;
@@ -158,8 +181,10 @@ class SearchReplace
                     }
                 }
                 if ($update) {
-                    $wpdb->update($table, $update, [$primary_key => $row[$primary_key]]);
                     $changed++;
+                    if (! $dry_run) {
+                        $wpdb->update($table, $update, [$primary_key => $row[$primary_key]]);
+                    }
                 }
             }
 
@@ -167,6 +192,6 @@ class SearchReplace
             $offset += $batch;
         } while ($count === $batch);
 
-        return $changed;
+        return ['rows' => $changed, 'replacements' => $this->replacements];
     }
 }

@@ -14,6 +14,10 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.29.0 =
+* Add a "Search & Replace" tab: find and replace arbitrary text across selected database tables, safe for PHP-serialized data (ACF, widgets, options). Includes a dry run that reports how many matches would be replaced before you commit. Works on any environment.
+* The environment picker on the transfer tabs and editor no longer lists the current site as a destination (you can't transfer a site to itself).
+
 = 0.28.0 =
 * Add "Live Domain Swapping on Saves" (on by default): when a post, page, product or custom post type is saved, any other environment's URLs in the content and ACF fields are automatically rewritten to this site's URL — so pasting blocks copied from another environment no longer leaves stale domains behind. Toggle it in Connection Settings.
 * Database syncs now rewrite every configured environment's domain (not just the source) to the current site's URL.

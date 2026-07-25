@@ -14,7 +14,7 @@ class UploadsSyncPanel
 {
     public static function render(): void
     {
-        $environments = Environments::all();
+        $environments = Environments::selectableTargets();
         $has_secret   = ConnectionSecret::get() !== null;
         ?>
         <h2><?php echo esc_html__('Uploads Sync', 'wphaven-connect'); ?></h2>
