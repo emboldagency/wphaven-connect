@@ -17,12 +17,12 @@ class RefreshPanel
         $environments = Environments::selectableTargets();
         $has_secret   = ConnectionSecret::get() !== null;
         ?>
-        <h2><?php echo esc_html__('Environment Refresh', 'wphaven-connect'); ?></h2>
+        <h2><?php echo esc_html__('Full Transfer', 'wphaven-connect'); ?></h2>
 
         <div class="notice notice-error inline" style="border-left-color:#d63638;padding:12px;max-width:760px;">
             <p style="margin:0 0 8px;">
                 <strong><?php echo esc_html__('Danger:', 'wphaven-connect'); ?></strong>
-                <?php echo esc_html__('This overwrites the ENTIRE database (every table, including users and settings) on the destination and syncs the uploads directory, then rewrites the source domain to the destination. It is a full content clone in the chosen direction.', 'wphaven-connect'); ?>
+                <?php echo esc_html__('This overwrites the ENTIRE database (every table, including users and settings) on the destination and syncs the uploads directory. It is a full content clone in the chosen direction.', 'wphaven-connect'); ?>
             </p>
             <p style="margin:0;">
                 <strong><?php echo esc_html__('It does NOT deploy code.', 'wphaven-connect'); ?></strong>

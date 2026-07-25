@@ -347,7 +347,7 @@ class SettingsServiceProvider
     private function renderRefreshTab()
     {
         if (Environment::is_production()) {
-            echo '<div class="notice notice-info inline"><p>' . esc_html__('Environment Refresh runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Full Transfer runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
             return;
         }
 
@@ -395,7 +395,7 @@ class SettingsServiceProvider
                 </a>
                 <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=refresh')); ?>"
                     class="nav-tab <?php echo $active_tab === 'refresh' ? 'nav-tab-active' : ''; ?>">
-                    <?php echo esc_html__('Refresh', 'wphaven-connect'); ?>
+                    <?php echo esc_html__('Full Transfer', 'wphaven-connect'); ?>
                 </a>
                 <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=search-replace')); ?>"
                     class="nav-tab <?php echo $active_tab === 'search-replace' ? 'nav-tab-active' : ''; ?>">

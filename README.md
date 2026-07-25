@@ -25,7 +25,7 @@ WordPress plugin that provides functionality to connect to the remote maintenanc
 - **Haven WAF Cookie**: Set security cookies for elevated users (admin/editor) for WAF bypass
 - **Content Transfer**: Send an individual post/page/CPT to a chosen environment, or pull it back, from the editor. Copies custom fields (ACF, Yoast), terms, featured and inline images, authenticated by a shared secret that must match across environments
 - **Multi-environment targets**: A modular list of environments (production/staging/maintenance + extras) is the destination picker for all transfer tools; the app name auto-detects and the list can be populated from WP Haven
-- **Environment Refresh**: A one-click full Database + Uploads clone to/from a chosen environment (a "Refresh" tab), guarded by a per-direction typed phrase. Does not deploy code — deploy that separately
+- **Full Transfer**: A one-click full Database + Uploads clone to/from a chosen environment (a "Full Transfer" tab), guarded by a per-direction typed phrase. Does not deploy code — deploy that separately
 - **Live Domain Swapping**: On every save, other environments' URLs in post content and ACF fields are rewritten to this site's URL (on by default, toggle in Connection Settings); database syncs do the same across all known environment domains. Production media (ASSET_URL) is always left untouched
 - **Search & Replace**: A "Search & Replace" tab for arbitrary, serialized-data-safe find/replace across selected tables, with a dry run that counts matches before committing
 - **Database Transfer**: A settings-page tab to overwrite selected database tables between this environment and production (both directions), rewriting the source domain to the destination's (serialized-safe). Each table is backed up and swapped atomically; destructive actions require a typed confirmation phrase and run on non-production only
@@ -48,7 +48,7 @@ Configuration is available via:
    - Environment connection secret (editable, with regenerate)
    - A "Database Transfer" tab for overwriting selected tables to/from a chosen environment
    - An "Uploads" tab for additively syncing the uploads directory to/from a chosen environment
-   - A "Refresh" tab for a one-click Database + Uploads clone to/from a chosen environment
+   - A "Full Transfer" tab for a one-click Database + Uploads clone to/from a chosen environment
    - A "Search & Replace" tab for serialized-safe find/replace across selected tables (with dry run)
 
 2. **Environment Constants** (in `wp-config.php`):

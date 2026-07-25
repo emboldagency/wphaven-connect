@@ -303,7 +303,7 @@ class ContentTransferServiceProvider
             echo '<option value="' . esc_attr($environment['label']) . '">' . esc_html($environment['label']) . '</option>';
         }
         echo '</select>';
-        echo '<button type="button" class="button wphaven-send-to-production" style="display:block;width:100%;text-align:center;margin-bottom:6px;">' . esc_html__('Send', 'wphaven-connect') . '</button>';
+        echo '<button type="button" class="button wphaven-send-to-production" style="display:block;width:100%;text-align:center;margin-bottom:6px;">' . esc_html__('Push', 'wphaven-connect') . '</button>';
         echo '<button type="button" class="button wphaven-update-from-production" style="display:block;width:100%;text-align:center;">' . esc_html__('Pull', 'wphaven-connect') . '</button>';
         echo '<p class="wphaven-transfer-status description"></p>';
         echo '</div>';
@@ -325,7 +325,7 @@ class ContentTransferServiceProvider
             'environments'    => Environments::selectableTargetLabels(),
             'productionLabel' => Environments::PRODUCTION_LABEL,
             'i18n'            => [
-                'sendTitle'     => __('Send', 'wphaven-connect'),
+                'sendTitle'     => __('Push', 'wphaven-connect'),
                 'pullTitle'     => __('Pull', 'wphaven-connect'),
                 'targetLabel'   => __('Environment', 'wphaven-connect'),
                 'confirmSend'   => __('Send this content to "%s"? Review the summary before confirming.', 'wphaven-connect'),

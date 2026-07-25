@@ -24,7 +24,7 @@ Provides functionality to connect to the remote maintenance and management platf
 * Both now shield ASSET_URL-hosted media, so production-served images are never repointed to another environment (also fixes stale media URLs on database pulls).
 
 = 0.27.0 =
-* Add a "Refresh" tab: a one-click full Database + Uploads transfer to or from a chosen environment (runs the existing transfer flows back to back). Requires typing a per-direction confirmation phrase ("I am pushing to <env>" / "I am pulling from <env>") and shows a reminder that it does not deploy code — deploy that separately and make sure the destination's git is up to date first.
+* Add a "Full Transfer" tab: a one-click full Database + Uploads transfer to or from a chosen environment (runs the existing transfer flows back to back). Requires typing a per-direction confirmation phrase ("I am pushing to <env>" / "I am pulling from <env>") and shows a reminder that it does not deploy code — deploy that separately and make sure the destination's git is up to date first.
 
 = 0.26.0 =
 * Uploads Sync gains an optional "Add new files to the destination Media Library" toggle (off by default) that registers transferred originals as attachments. Registered files get new IDs on the destination; to keep IDs matching the source, run a Database Transfer of wp_posts and wp_postmeta instead (overwrites those whole tables).

@@ -61,8 +61,8 @@ class RefreshServiceProvider
             'i18n'    => [
                 'pushPhrase' => __('I am pushing to %s', 'wphaven-connect'),
                 'pullPhrase' => __('I am pulling from %s', 'wphaven-connect'),
-                'pushTo'     => __('Refresh %s (push)', 'wphaven-connect'),
-                'pullFrom'   => __('Refresh this environment from %s (pull)', 'wphaven-connect'),
+                'pushTo'     => __('Push to %s', 'wphaven-connect'),
+                'pullFrom'   => __('Pull from %s', 'wphaven-connect'),
                 'dbPhase'    => __('Database: %1$s (%2$s/%3$s tables)…', 'wphaven-connect'),
                 'uploadsPhase' => __('Uploads: %1$s/%2$s files…', 'wphaven-connect'),
                 'tableFail'  => __('✗ %1$s — %2$s', 'wphaven-connect'),

@@ -324,7 +324,7 @@ class UploadsSyncServiceProvider
             'nonce'   => wp_create_nonce(self::NONCE_ACTION),
             'action'  => self::AJAX_ACTION,
             'i18n'    => [
-                'pushTo'      => __('Send to %s', 'wphaven-connect'),
+                'pushTo'      => __('Push to %s', 'wphaven-connect'),
                 'pullFrom'    => __('Pull from %s', 'wphaven-connect'),
                 'confirmPush' => __('Copy missing uploads to "%s"? (Nothing will be deleted.)', 'wphaven-connect'),
                 'confirmPull' => __('Copy missing uploads from "%s" to this environment? (Nothing will be deleted.)', 'wphaven-connect'),

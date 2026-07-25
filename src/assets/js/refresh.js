@@ -48,6 +48,7 @@
       btn.textContent = fmt(direction === "pull" ? i18n.pullFrom : i18n.pushTo, targetName());
       btn.disabled = busy || confirmInput.value.trim() !== requiredPhrase(direction);
     });
+    confirmInput.placeholder = requiredPhrase("push");
     confirmInput.disabled = busy;
     targetSelect.disabled = busy;
   }

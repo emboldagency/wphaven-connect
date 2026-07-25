@@ -314,7 +314,7 @@ class DatabaseTransferServiceProvider
             'pushPhrase'      => self::PUSH_PHRASE,
             'i18n'            => [
                 'noTables'    => __('Select at least one table.', 'wphaven-connect'),
-                'pushTo'      => __('Send to %s', 'wphaven-connect'),
+                'pushTo'      => __('Push to %s', 'wphaven-connect'),
                 'pullFrom'    => __('Pull from %s', 'wphaven-connect'),
                 'confirmPush' => __('This will OVERWRITE the selected tables on "%s". Continue?', 'wphaven-connect'),
                 'confirmPull' => __('This will OVERWRITE the selected tables on this environment with "%s". Continue?', 'wphaven-connect'),
