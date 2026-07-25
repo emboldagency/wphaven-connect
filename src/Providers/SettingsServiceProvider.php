@@ -7,6 +7,7 @@ use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\DatabaseTransfer\DatabaseTransferPanel;
+use WPHavenConnect\Refresh\RefreshPanel;
 use WPHavenConnect\UploadsSync\UploadsSyncPanel;
 use WPHavenConnect\Utilities\ElevatedUsers;
 use WPHavenConnect\Utilities\Environment;
@@ -334,6 +335,16 @@ class SettingsServiceProvider
         UploadsSyncPanel::render();
     }
 
+    private function renderRefreshTab()
+    {
+        if (Environment::is_production()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Environment Refresh runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            return;
+        }
+
+        RefreshPanel::render();
+    }
+
     public function renderSettingsPage()
     {
         $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
@@ -356,7 +367,7 @@ class SettingsServiceProvider
 
             <?php
             $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
-            if (! in_array($active_tab, ['settings', 'database', 'uploads'], true)) {
+            if (! in_array($active_tab, ['settings', 'database', 'uploads', 'refresh'], true)) {
                 $active_tab = 'settings';
             }
             ?>
@@ -373,6 +384,10 @@ class SettingsServiceProvider
                     class="nav-tab <?php echo $active_tab === 'uploads' ? 'nav-tab-active' : ''; ?>">
                     <?php echo esc_html__('Uploads', 'wphaven-connect'); ?>
                 </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=refresh')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'refresh' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Refresh', 'wphaven-connect'); ?>
+                </a>
             </h2>
 
             <?php
@@ -383,6 +398,11 @@ class SettingsServiceProvider
             }
             if ($active_tab === 'uploads') {
                 $this->renderUploadsTab();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'refresh') {
+                $this->renderRefreshTab();
                 echo '</div>';
                 return;
             }

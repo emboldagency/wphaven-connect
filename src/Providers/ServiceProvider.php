@@ -27,6 +27,7 @@ class ServiceProvider
         EnvironmentIndicatorAdminBarBadgeProvider::class,
         HealthServiceProvider::class,
         PhpInfoServiceProvider::class,
+        RefreshServiceProvider::class,
         ServerInfoServiceProvider::class,
         SettingsServiceProvider::class,
         SiteHealthServiceProvider::class,
