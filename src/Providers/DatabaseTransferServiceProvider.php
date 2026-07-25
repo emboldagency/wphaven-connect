@@ -129,7 +129,8 @@ class DatabaseTransferServiceProvider
         }
 
         $source = esc_url_raw((string) $request->get_param('source_site_url'));
-        $replaced = (new SearchReplace($source, site_url()))
+        $froms = array_merge([$source], Environments::allUrls());
+        $replaced = (new SearchReplace($froms, site_url()))
             ->replaceInTable($repo->wpdb(), $repo->stageName($base), $repo->primaryKey($full));
 
         $repo->atomicSwap($base, $full);
@@ -276,8 +277,10 @@ class DatabaseTransferServiceProvider
             return $response;
         }
 
-        // finalize — rewrite the source (peer) domain to this site's.
-        $replaced = (new SearchReplace((string) $client->peerUrl(), site_url()))
+        // finalize — rewrite the source (peer) domain, and any other known
+        // environment domain, to this site's.
+        $froms = array_merge([(string) $client->peerUrl()], Environments::allUrls());
+        $replaced = (new SearchReplace($froms, site_url()))
             ->replaceInTable($repo->wpdb(), $repo->stageName($base), $repo->primaryKey($full));
         $repo->atomicSwap($base, $full);
         $repo->dropBackup($base);

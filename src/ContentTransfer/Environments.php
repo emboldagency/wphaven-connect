@@ -40,6 +40,16 @@ class Environments
         return array_map(static fn ($e) => $e['label'], self::all());
     }
 
+    /**
+     * All configured environment URLs.
+     *
+     * @return string[]
+     */
+    public static function allUrls(): array
+    {
+        return array_map(static fn ($e) => $e['url'], self::all());
+    }
+
     public static function urlFor(string $label): ?string
     {
         $label = self::cleanLabel($label);

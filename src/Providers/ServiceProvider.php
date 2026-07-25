@@ -26,6 +26,7 @@ class ServiceProvider
         DisableMailServiceProvider::class,
         EnvironmentIndicatorAdminBarBadgeProvider::class,
         HealthServiceProvider::class,
+        LiveDomainSwapProvider::class,
         PhpInfoServiceProvider::class,
         RefreshServiceProvider::class,
         ServerInfoServiceProvider::class,

@@ -211,6 +211,10 @@ class SettingsServiceProvider
         );
 
         add_settings_field('environments', __('Environments', 'wphaven-connect'), [$this, 'renderEnvironmentsField'], 'wphaven-connect', 'wphaven_connect_connection');
+        add_settings_field('live_domain_swap', __('Live Domain Swapping on Saves', 'wphaven-connect'), [$this, 'renderCheckboxField'], 'wphaven-connect', 'wphaven_connect_connection', [
+            'key'  => 'live_domain_swap',
+            'desc' => __('When saving a post, page, product or custom post type, automatically rewrite any other environment\'s URLs found in the content and ACF fields to this site\'s URL (e.g. after pasting blocks copied from another environment). Media served from production (ASSET_URL) is left untouched.', 'wphaven-connect'),
+        ]);
     }
 
     public function sanitize($input)
@@ -232,6 +236,9 @@ class SettingsServiceProvider
         if (isset($input['environments']) && is_array($input['environments'])) {
             $output['environments'] = Environments::normalize($input['environments']);
         }
+
+        // --- Live domain swapping (checkbox; absent means unchecked) ---
+        $output['live_domain_swap'] = isset($input['live_domain_swap']);
 
         if (isset($input['admin_login_slug'])) {
             $output['admin_login_slug'] = trim(sanitize_text_field($input['admin_login_slug']), '/');
@@ -286,6 +293,7 @@ class SettingsServiceProvider
             'wphaven_api_base' => '',
             'app_name' => '',
             'environments' => [],
+            'live_domain_swap' => true,
             'show_environment_indicator' => true,
             'mail_mode' => 'auto', // Default to Auto (Safety Net active)
         ]);

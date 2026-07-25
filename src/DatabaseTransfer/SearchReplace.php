@@ -18,11 +18,20 @@ class SearchReplace
     /** @var array<int, array{0: string, 1: string}> search/replace pairs */
     private array $pairs = [];
 
-    public function __construct(string $from, string $to)
+    /**
+     * @param string|array<int, string> $from One or more source URLs to rewrite.
+     */
+    public function __construct($from, string $to)
+    {
+        $to = untrailingslashit($to);
+        foreach ((array) $from as $source) {
+            $this->addPair((string) $source, $to);
+        }
+    }
+
+    private function addPair(string $from, string $to): void
     {
         $from = untrailingslashit($from);
-        $to   = untrailingslashit($to);
-
         if ($from === '' || $from === $to) {
             return;
         }
@@ -91,11 +100,24 @@ class SearchReplace
 
     private function replaceString(string $value): string
     {
+        // Shield ASSET_URL-hosted media (served from production) so its URLs are
+        // never rewritten to another environment.
+        $token = '%%WPHAVEN_ASSET_URL%%';
+        $asset = (defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
+        if ($asset !== '' && strpos($value, $asset) !== false) {
+            $value = str_replace($asset, $token, $value);
+        }
+
         foreach ($this->pairs as [$search, $replacement]) {
             if ($search !== '' && strpos($value, $search) !== false) {
                 $value = str_replace($search, $replacement, $value);
             }
         }
+
+        if ($asset !== '') {
+            $value = str_replace($token, $asset, $value);
+        }
+
         return $value;
     }
 

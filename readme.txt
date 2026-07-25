@@ -14,6 +14,11 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.28.0 =
+* Add "Live Domain Swapping on Saves" (on by default): when a post, page, product or custom post type is saved, any other environment's URLs in the content and ACF fields are automatically rewritten to this site's URL — so pasting blocks copied from another environment no longer leaves stale domains behind. Toggle it in Connection Settings.
+* Database syncs now rewrite every configured environment's domain (not just the source) to the current site's URL.
+* Both now shield ASSET_URL-hosted media, so production-served images are never repointed to another environment (also fixes stale media URLs on database pulls).
+
 = 0.27.0 =
 * Add a "Refresh" tab: a one-click full Database + Uploads transfer to or from a chosen environment (runs the existing transfer flows back to back). Requires typing a per-direction confirmation phrase ("I am pushing to <env>" / "I am pulling from <env>") and shows a reminder that it does not deploy code — deploy that separately and make sure the destination's git is up to date first.
 
