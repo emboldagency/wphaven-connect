@@ -110,6 +110,26 @@ class TransferClient
     }
 
     /**
+     * Fetch the remote's table + uploads stats for the Compare tab.
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function compareStats()
+    {
+        return $this->request('/compare/stats', []);
+    }
+
+    /**
+     * Fetch the remote's per-post content fingerprints for the Compare tab.
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function compareContent()
+    {
+        return $this->request('/compare/content', []);
+    }
+
+    /**
      * Ask the remote to create a fresh stage table for a base table (push).
      *
      * @return array<string, mixed>|WP_Error

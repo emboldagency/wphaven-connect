@@ -2,6 +2,7 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\Compare\ComparePanel;
 use WPHavenConnect\ContentTransfer\AppName;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\ContentTransfer\Environments;
@@ -376,7 +377,7 @@ class SettingsServiceProvider
 
             <?php
             $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
-            if (! in_array($active_tab, ['settings', 'database', 'uploads', 'refresh', 'search-replace'], true)) {
+            if (! in_array($active_tab, ['settings', 'compare', 'database', 'uploads', 'refresh', 'search-replace'], true)) {
                 $active_tab = 'settings';
             }
             ?>
@@ -384,6 +385,10 @@ class SettingsServiceProvider
                 <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=settings')); ?>"
                     class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
                     <?php echo esc_html__('Settings', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=compare')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'compare' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Compare', 'wphaven-connect'); ?>
                 </a>
                 <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=database')); ?>"
                     class="nav-tab <?php echo $active_tab === 'database' ? 'nav-tab-active' : ''; ?>">
@@ -404,6 +409,11 @@ class SettingsServiceProvider
             </h2>
 
             <?php
+            if ($active_tab === 'compare') {
+                ComparePanel::render();
+                echo '</div>';
+                return;
+            }
             if ($active_tab === 'database') {
                 $this->renderDatabaseTab();
                 echo '</div>';

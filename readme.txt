@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.22.0
+Stable tag: 0.30.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.30.0 =
+* Add a "Compare" tab (second tab): a read-only divergence report against a chosen environment — exact table row counts (here vs there), uploads file counts and size, and per-post-type content divergence showing how many posts, pages, products and other types differ, exist only here, or only there. Nothing is changed; it's the "look before you transfer" companion to the other tools. Posts are matched by their WPHaven content id when present, otherwise by post ID (for environments that share a common database origin).
 
 = 0.29.0 =
 * Add a "Search & Replace" tab: find and replace arbitrary text across selected database tables, safe for PHP-serialized data (ACF, widgets, options). Includes a dry run that reports how many matches would be replaced before you commit. Works on any environment.
