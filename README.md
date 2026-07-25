@@ -23,7 +23,7 @@ WordPress plugin that provides functionality to connect to the remote maintenanc
 - **Server & PHP Info API**: Expose server and PHP configuration details via secure API endpoints
 - **Asset URL Fallback**: Configure alternative asset URLs with ASSET_URL constant
 - **Haven WAF Cookie**: Set security cookies for elevated users (admin/editor) for WAF bypass
-- **Content Transfer**: Send an individual post/page/CPT to a chosen environment, or pull it back, from the editor. Copies custom fields (ACF, Yoast), terms, featured and inline images, authenticated by a shared secret that must match across environments
+- **Content Transfer**: Send an individual post/page/CPT to a chosen environment, or pull it back, from the editor. Copies custom fields (ACF, Yoast), terms, featured and inline images, authenticated by a shared secret that must match across environments. Also available in bulk — tick multiple items in the Posts/Pages/CPT list screens and push or pull them at once
 - **Compare**: A read-only "Compare" tab showing how this environment diverges from another — table row counts, uploads totals, and per-post-type content divergence (how many posts/pages/products differ or exist on only one side)
 - **Multi-environment targets**: A modular list of environments (production/staging/maintenance + extras) is the destination picker for all transfer tools; the app name auto-detects and the list can be populated from WP Haven
 - **Full Transfer**: A one-click full Database + Uploads clone to/from a chosen environment (a "Full Transfer" tab), guarded by a per-direction typed phrase. Does not deploy code — deploy that separately

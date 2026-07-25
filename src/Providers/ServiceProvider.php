@@ -17,6 +17,7 @@ class ServiceProvider
 
         // Add other service providers here
         AssetUrlServiceProvider::class,
+        BulkContentTransferProvider::class,
         ClientAlertsProvider::class,
         CommandLineServiceProvider::class,
         CompareServiceProvider::class,
