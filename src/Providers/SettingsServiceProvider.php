@@ -217,6 +217,10 @@ class SettingsServiceProvider
             'key'  => 'live_domain_swap',
             'desc' => __('When saving a post, page, product or custom post type, automatically rewrite any other environment\'s URLs found in the content and ACF fields to this site\'s URL (e.g. after pasting blocks copied from another environment). Media served from production (ASSET_URL) is left untouched.', 'wphaven-connect'),
         ]);
+        add_settings_field('link_on_first_transfer', __('Link Existing Content on First Transfer', 'wphaven-connect'), [$this, 'renderCheckboxField'], 'wphaven-connect', 'wphaven_connect_connection', [
+            'key'  => 'link_on_first_transfer',
+            'desc' => __('The first time a post/page/product is pushed or pulled, adopt the matching existing item on the destination (same type + slug, or same post ID) instead of creating a duplicate. Leave on for environments cloned from each other; turn off only for environments with independent content.', 'wphaven-connect'),
+        ]);
     }
 
     public function sanitize($input)
@@ -241,6 +245,7 @@ class SettingsServiceProvider
 
         // --- Live domain swapping (checkbox; absent means unchecked) ---
         $output['live_domain_swap'] = isset($input['live_domain_swap']);
+        $output['link_on_first_transfer'] = isset($input['link_on_first_transfer']);
 
         if (isset($input['admin_login_slug'])) {
             $output['admin_login_slug'] = trim(sanitize_text_field($input['admin_login_slug']), '/');
@@ -296,6 +301,7 @@ class SettingsServiceProvider
             'app_name' => '',
             'environments' => [],
             'live_domain_swap' => true,
+            'link_on_first_transfer' => true,
             'show_environment_indicator' => true,
             'mail_mode' => 'auto', // Default to Auto (Safety Net active)
         ]);

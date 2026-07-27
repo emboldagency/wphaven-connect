@@ -86,6 +86,7 @@ class ContentSerializer
         $parent_uuid  = $post->post_parent ? ContentIdentity::get((int) $post->post_parent) : null;
 
         return [
+            'source_post_id'         => (int) $post->ID,
             'post_title'             => $post->post_title,
             'post_content'           => $post->post_content,
             'post_excerpt'           => $post->post_excerpt,

@@ -97,6 +97,54 @@ class ContentIdentity
     }
 
     /**
+     * Find an existing, not-yet-linked local post that is clearly "the same" as
+     * the incoming one, so a first transfer can adopt it instead of creating a
+     * duplicate (the fresh-install-of-clones case).
+     *
+     * Guarded to stay safe: the candidate must be the SAME post type (so a page
+     * can never adopt a product), must not already carry a content id (so we
+     * never steal a post linked elsewhere), and — for the slug fallback — must
+     * be the only such candidate. Prefers an exact post-ID match since cloned
+     * environments share auto-increment IDs.
+     */
+    public static function findAdoptable(string $post_type, string $slug, int $source_post_id): ?int
+    {
+        if ($post_type === '') {
+            return null;
+        }
+
+        // 1. Strongest signal: same numeric ID + same type + unlinked.
+        if ($source_post_id > 0) {
+            $post = get_post($source_post_id);
+            if ($post && $post->post_type === $post_type && self::get($source_post_id) === null) {
+                return (int) $post->ID;
+            }
+        }
+
+        // 2. Fallback: exactly one unlinked post of this type with this slug.
+        if ($slug !== '') {
+            $matches = get_posts([
+                'name'             => $slug,
+                'post_type'        => $post_type,
+                'post_status'      => ['publish', 'future', 'draft', 'pending', 'private'],
+                'posts_per_page'   => 2,
+                'fields'           => 'ids',
+                'no_found_rows'    => true,
+                'suppress_filters' => false,
+                'meta_query'       => [[
+                    'key'     => self::META_KEY,
+                    'compare' => 'NOT EXISTS',
+                ]],
+            ]);
+            if (count($matches) === 1) {
+                return (int) $matches[0];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * A read-only "possible match" hint for first-time linking, surfaced only in
      * the preview UI. Never used to pick an automatic write target because slugs
      * mutate and are not unique across post types.

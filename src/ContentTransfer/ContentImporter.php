@@ -42,7 +42,7 @@ class ContentImporter
             return $validation;
         }
 
-        $target = ContentIdentity::findLocalPost($envelope['content_id']);
+        $target = $this->resolveTarget($envelope);
         if (is_wp_error($target)) {
             return $target;
         }
@@ -92,7 +92,7 @@ class ContentImporter
         $publish            = ! empty($args['publish']);
         $overwrite_conflict = ! empty($args['overwrite_conflict']);
 
-        $target = ContentIdentity::findLocalPost($envelope['content_id']);
+        $target = $this->resolveTarget($envelope);
         if (is_wp_error($target)) {
             return $target;
         }
@@ -175,6 +175,46 @@ class ContentImporter
         }
 
         return true;
+    }
+
+    /**
+     * Resolve which local post an envelope applies to: the one carrying its
+     * content id, or — on a first transfer, when adoption is enabled — an
+     * existing not-yet-linked post that is clearly the same one (so cloned
+     * environments don't duplicate on first push/pull). Null means create new.
+     *
+     * @param array<string, mixed> $envelope
+     * @return int|WP_Error|null
+     */
+    private function resolveTarget(array $envelope)
+    {
+        $target = ContentIdentity::findLocalPost($envelope['content_id']);
+        if (is_wp_error($target) || $target !== null) {
+            return $target;
+        }
+
+        if (! $this->adoptionEnabled()) {
+            return null;
+        }
+
+        $post = $envelope['post'];
+
+        return ContentIdentity::findAdoptable(
+            (string) ($post['post_type'] ?? 'post'),
+            (string) ($post['post_name'] ?? ''),
+            (int) ($post['source_post_id'] ?? 0)
+        );
+    }
+
+    /**
+     * Whether to adopt an existing matching post on a first transfer instead of
+     * creating a duplicate (option, default on).
+     */
+    private function adoptionEnabled(): bool
+    {
+        $opts = get_option('wphaven_connect_options', []);
+
+        return ! is_array($opts) || ! array_key_exists('link_on_first_transfer', $opts) || ! empty($opts['link_on_first_transfer']);
     }
 
     /**
