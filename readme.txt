@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.22.0
+Stable tag: 0.31.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,53 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.31.0 =
+* Add bulk content transfer: on the Posts, Pages and custom-post-type list screens, tick several items and push them to — or pull them from — a chosen environment in one go, with an optional "overwrite if changed" toggle. Runs the same per-item transfer as the editor buttons, reporting how many transferred, were skipped, or failed. Non-production only.
+
+= 0.30.0 =
+* Add a "Compare" tab (second tab): a read-only divergence report against a chosen environment — exact table row counts (here vs there), uploads file counts and size, and per-post-type content divergence showing how many posts, pages, products and other types differ, exist only here, or only there. Nothing is changed; it's the "look before you transfer" companion to the other tools. Posts are matched by their WPHaven content id when present, otherwise by post ID (for environments that share a common database origin).
+
+= 0.29.0 =
+* Add a "Search & Replace" tab: find and replace arbitrary text across selected database tables, safe for PHP-serialized data (ACF, widgets, options). Includes a dry run that reports how many matches would be replaced before you commit. Works on any environment.
+* The environment picker on the transfer tabs and editor no longer lists the current site as a destination (you can't transfer a site to itself).
+
+= 0.28.0 =
+* Add "Live Domain Swapping on Saves" (on by default): when a post, page, product or custom post type is saved, any other environment's URLs in the content and ACF fields are automatically rewritten to this site's URL — so pasting blocks copied from another environment no longer leaves stale domains behind. Toggle it in Connection Settings.
+* Database syncs now rewrite every configured environment's domain (not just the source) to the current site's URL.
+* Both now shield ASSET_URL-hosted media, so production-served images are never repointed to another environment (also fixes stale media URLs on database pulls).
+
+= 0.27.0 =
+* Add a "Full Transfer" tab: a one-click full Database + Uploads transfer to or from a chosen environment (runs the existing transfer flows back to back). Requires typing a per-direction confirmation phrase ("I am pushing to <env>" / "I am pulling from <env>") and shows a reminder that it does not deploy code — deploy that separately and make sure the destination's git is up to date first.
+
+= 0.26.0 =
+* Uploads Sync gains an optional "Add new files to the destination Media Library" toggle (off by default) that registers transferred originals as attachments. Registered files get new IDs on the destination; to keep IDs matching the source, run a Database Transfer of wp_posts and wp_postmeta instead (overwrites those whole tables).
+* Transfers now target a chosen environment, not just production. Configure a modular list of environments (production/staging/maintenance, plus extras like "new"/"old" for server moves) and pick the destination when you push or pull content, tables, or uploads.
+* Add an "App Name" setting at the top of the settings page — auto-detected from the hostname on staging/maintenance/dev — used to identify the site and populate the environment list.
+* Add a "Populate Environment List from WP Haven" button that fetches this site's environment domains and updates matching rows (custom rows are kept).
+* Environment labels are always saved lowercase, so "Production" and "production" can't diverge; the row labeled "production" is the only one that requires typing a confirmation phrase to overwrite (other destinations use a plain confirm).
+* Transfer requests now use the REST query-string form, so destinations that block POST to /wp-json/ at the web server still work.
+
+= 0.25.0 =
+* Add an "Uploads" tab that syncs the wp-content/uploads directory between this environment and production, in either direction. Pair it with a Database Transfer so migrated content finds its media.
+* Additive by design: files missing on the destination are copied over (optionally also files that differ), and nothing is ever deleted.
+* Transfers compare file manifests first and only move what's needed, chunk large files by byte range, show a progress bar, and are idempotent (re-running only moves what's still missing). Available on non-production environments only.
+* Database Transfer now advises taking a RunCloud on-demand backup from WP Haven before pushing (there is no in-plugin snapshot).
+
+= 0.24.0 =
+* Add a "Database Transfer" tab to the WP Haven Connect settings page (the existing settings become the first tab).
+* Select any tables and Send to Production or Pull from Production; the destination tables are overwritten and the source domain is rewritten to the destination's throughout, safely handling PHP-serialized data.
+* Each table is imported into a temporary table and swapped into place atomically; the old table is renamed aside only during the swap and dropped as soon as it succeeds (kept only if the transfer fails) — so the live table is never empty mid-transfer. There is no persistent backup, and the destination needs transient free disk roughly equal to the largest table being transferred.
+* Transfers are chunked with a live progress bar, and each direction requires typing an exact confirmation phrase before it will run. Available on non-production environments only.
+* Known limitations: multisite blog tables and non-prefixed tables are out of scope; very large tables are slower over the chunked transfer.
+
+= 0.23.0 =
+* Add Content Transfer: send an individual post, page or custom post type to production (or pull the production version back) right from the editor, on both the block and classic editors.
+* Add a "Connection Settings" section with a Production URL field and an editable, regenerable environment connection secret that must match across every environment.
+* Transfers copy the post, its custom fields (including ACF and Yoast, which store as post meta), assigned terms, the featured image and images embedded in the content. Media files are embedded in the transfer payload so they import reliably even when the source environment is not publicly reachable; production-hosted media is linked rather than re-uploaded.
+* The source site's domain is automatically rewritten to the destination's across content, excerpt and meta, so references to the origin environment are repointed on arrival (ASSET_URL production media is left untouched).
+* Transfers preview a summary before applying, land new items as drafts, keep the target's publish status unless explicitly published, snapshot the target before overwriting, and warn when the target changed more recently.
+* Known limitations: nested ACF (repeater/flexible/clone) media, Yoast primary category and OG image IDs, and WooCommerce galleries/variations are not remapped in this version.
 
 = 0.22.0 =
 * Add a protected `/health` endpoint (and `wp wphaven health` command) reporting WP-Cron, email delivery, disk usage, PHP fatals, missed scheduled posts, and SSL certificate expiry.

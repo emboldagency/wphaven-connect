@@ -2,7 +2,17 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\Compare\ComparePanel;
+use WPHavenConnect\ContentTransfer\AppName;
+use WPHavenConnect\ContentTransfer\ConnectionSecret;
+use WPHavenConnect\ContentTransfer\Environments;
+use WPHavenConnect\ContentTransfer\TransferClient;
+use WPHavenConnect\DatabaseTransfer\DatabaseTransferPanel;
+use WPHavenConnect\Refresh\RefreshPanel;
+use WPHavenConnect\SearchReplace\SearchReplacePanel;
+use WPHavenConnect\UploadsSync\UploadsSyncPanel;
 use WPHavenConnect\Utilities\ElevatedUsers;
+use WPHavenConnect\Utilities\Environment;
 
 class SettingsServiceProvider
 {
@@ -20,6 +30,12 @@ class SettingsServiceProvider
 
         // Handle test email submissions from the settings page
         add_action('admin_post_wphaven_connect_send_test_email', [$this, 'handleSendTestEmail']);
+        // Handle environment connection secret save/regenerate
+        add_action('admin_post_wphaven_save_connection_secret', [$this, 'handleConnectionSecret']);
+        // Populate the environment list from the WP Haven API
+        add_action('admin_post_wphaven_populate_environments', [$this, 'handlePopulateEnvironments']);
+        // Seed the app name from the hostname on first load when empty
+        add_action('admin_init', [AppName::class, 'seedIfEmpty']);
         // Enqueue settings page assets
         add_action('admin_enqueue_scripts', [$this, 'enqueueSettingsAssets']);
 
@@ -140,6 +156,17 @@ class SettingsServiceProvider
     {
         register_setting(self::OPTION_NAME, self::OPTION_NAME, [$this, 'sanitize']);
 
+        // --- SECTION: App Name (top) ---
+        add_settings_section(
+            'wphaven_connect_app',
+            __('App Name', 'wphaven-connect'),
+            function () {
+                echo '<p>' . esc_html__('This site\'s WP Haven name (slug). It identifies the site when populating the environment list and is auto-detected from the hostname when possible.', 'wphaven-connect') . '</p>';
+            },
+            'wphaven-connect'
+        );
+        add_settings_field('app_name', __('App name', 'wphaven-connect'), [$this, 'renderAppNameField'], 'wphaven-connect', 'wphaven_connect_app');
+
         // --- SECTION: General Settings ---
         add_settings_section(
             'wphaven_connect_general',
@@ -174,6 +201,22 @@ class SettingsServiceProvider
             'wphaven-connect',
             'wphaven_connect_mail'
         );
+
+        // --- SECTION: Connection Settings ---
+        add_settings_section(
+            'wphaven_connect_connection',
+            __('Connection Settings', 'wphaven-connect'),
+            function () {
+                echo '<p>' . esc_html__('The environments this site can transfer to and from. Labels are saved lowercase; the one labeled "production" requires typing a confirmation phrase before it can be overwritten. The environment connection secret below must be identical on every environment.', 'wphaven-connect') . '</p>';
+            },
+            'wphaven-connect'
+        );
+
+        add_settings_field('environments', __('Environments', 'wphaven-connect'), [$this, 'renderEnvironmentsField'], 'wphaven-connect', 'wphaven_connect_connection');
+        add_settings_field('live_domain_swap', __('Live Domain Swapping on Saves', 'wphaven-connect'), [$this, 'renderCheckboxField'], 'wphaven-connect', 'wphaven_connect_connection', [
+            'key'  => 'live_domain_swap',
+            'desc' => __('When saving a post, page, product or custom post type, automatically rewrite any other environment\'s URLs found in the content and ACF fields to this site\'s URL (e.g. after pasting blocks copied from another environment). Media served from production (ASSET_URL) is left untouched.', 'wphaven-connect'),
+        ]);
     }
 
     public function sanitize($input)
@@ -185,6 +228,19 @@ class SettingsServiceProvider
         if (isset($input['wphaven_api_base'])) {
             $output['wphaven_api_base'] = esc_url_raw($input['wphaven_api_base']);
         }
+
+        // --- App name (lowercased, alnum/-/_) ---
+        if (! AppName::isLocked() && isset($input['app_name'])) {
+            $output['app_name'] = strtolower(preg_replace('/[^A-Za-z0-9\-_]/', '', trim((string) $input['app_name'])) ?? '');
+        }
+
+        // --- Environments (labels forced lowercase, de-duplicated) ---
+        if (isset($input['environments']) && is_array($input['environments'])) {
+            $output['environments'] = Environments::normalize($input['environments']);
+        }
+
+        // --- Live domain swapping (checkbox; absent means unchecked) ---
+        $output['live_domain_swap'] = isset($input['live_domain_swap']);
 
         if (isset($input['admin_login_slug'])) {
             $output['admin_login_slug'] = trim(sanitize_text_field($input['admin_login_slug']), '/');
@@ -237,6 +293,9 @@ class SettingsServiceProvider
             'wphaven_404_redirect' => '',
             'elevated_emails' => [],
             'wphaven_api_base' => '',
+            'app_name' => '',
+            'environments' => [],
+            'live_domain_swap' => true,
             'show_environment_indicator' => true,
             'mail_mode' => 'auto', // Default to Auto (Safety Net active)
         ]);
@@ -266,6 +325,36 @@ class SettingsServiceProvider
         return '<p class="' . esc_attr($class) . '">' . $message . '</p>';
     }
 
+    private function renderDatabaseTab()
+    {
+        if (Environment::is_production()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Database Transfer runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            return;
+        }
+
+        DatabaseTransferPanel::render();
+    }
+
+    private function renderUploadsTab()
+    {
+        if (Environment::is_production()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Uploads Sync runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            return;
+        }
+
+        UploadsSyncPanel::render();
+    }
+
+    private function renderRefreshTab()
+    {
+        if (Environment::is_production()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Full Transfer runs on non-production environments only. Production receives transfers but does not initiate them.', 'wphaven-connect') . '</p></div>';
+            return;
+        }
+
+        RefreshPanel::render();
+    }
+
     public function renderSettingsPage()
     {
         $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
@@ -284,9 +373,68 @@ class SettingsServiceProvider
         $recipient_default = !empty($current_user_email) ? $current_user_email : $admin_email;
         ?>
         <div class="wrap">
-            <h1>
-                <?php echo esc_html__('WP Haven Connect: Development Settings', 'wphaven-connect'); ?>
-            </h1>
+            <h1><?php echo esc_html__('WP Haven Connect', 'wphaven-connect'); ?></h1>
+
+            <?php
+            $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+            if (! in_array($active_tab, ['settings', 'compare', 'database', 'uploads', 'refresh', 'search-replace'], true)) {
+                $active_tab = 'settings';
+            }
+            ?>
+            <h2 class="nav-tab-wrapper">
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=settings')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Settings', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=compare')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'compare' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Compare', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=database')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'database' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Database Transfer', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=uploads')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'uploads' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Uploads', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=refresh')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'refresh' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Full Transfer', 'wphaven-connect'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wphaven-connect&tab=search-replace')); ?>"
+                    class="nav-tab <?php echo $active_tab === 'search-replace' ? 'nav-tab-active' : ''; ?>">
+                    <?php echo esc_html__('Search & Replace', 'wphaven-connect'); ?>
+                </a>
+            </h2>
+
+            <?php
+            if ($active_tab === 'compare') {
+                ComparePanel::render();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'database') {
+                $this->renderDatabaseTab();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'uploads') {
+                $this->renderUploadsTab();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'refresh') {
+                $this->renderRefreshTab();
+                echo '</div>';
+                return;
+            }
+            if ($active_tab === 'search-replace') {
+                SearchReplacePanel::render();
+                echo '</div>';
+                return;
+            }
+            ?>
 
             <?php
             if (is_plugin_active('wps-hide-login/wps-hide-login.php')) {
@@ -376,6 +524,20 @@ class SettingsServiceProvider
                 ?>
             </form>
 
+            <?php // Populate environments from WP Haven ?>
+            <?php $populate = isset($_GET['wphaven_env']) ? sanitize_key(wp_unslash($_GET['wphaven_env'])) : ''; ?>
+            <?php if ($populate === 'populated'): ?>
+                <div class="notice notice-success is-dismissible"><p><?php echo esc_html__('Environment list updated from WP Haven.', 'wphaven-connect'); ?></p></div>
+            <?php elseif ($populate === 'error'): ?>
+                <div class="notice notice-error is-dismissible"><p><?php echo esc_html__('Could not fetch environments from WP Haven. Check the app name and API base.', 'wphaven-connect'); ?></p></div>
+            <?php endif; ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:8px 0 24px;">
+                <?php wp_nonce_field('wphaven_populate_environments', 'wphaven_populate_nonce'); ?>
+                <input type="hidden" name="action" value="wphaven_populate_environments">
+                <p class="description" style="margin:0 0 6px;"><?php echo esc_html__('Fetches this site\'s production/staging/maintenance domains and updates matching rows (your custom rows are kept). Save any manual edits first.', 'wphaven-connect'); ?></p>
+                <?php submit_button(__('Populate Environment List from WP Haven', 'wphaven-connect'), 'secondary', 'submit', false); ?>
+            </form>
+
             <hr>
 
             <?php // Test email form ?>
@@ -402,6 +564,9 @@ class SettingsServiceProvider
                     </tr>
                 </table>
             </form>
+
+            <hr style="margin-top: 40px; margin-bottom: 20px; border-color: #dcdcde;">
+            <?php $this->renderConnectionSecretBlock(); ?>
 
             <hr style="margin-top: 40px; margin-bottom: 20px; border-color: #dcdcde;">
             <h2><?php echo esc_html__('Reset Settings', 'wphaven-connect'); ?></h2>
@@ -470,6 +635,179 @@ class SettingsServiceProvider
         exit;
     }
 
+    public function renderConnectionSecretBlock()
+    {
+        $secret = ConnectionSecret::get();
+        $is_locked = ConnectionSecret::isLocked();
+        $notice = isset($_GET['wphaven_secret']) ? sanitize_key(wp_unslash($_GET['wphaven_secret'])) : '';
+        ?>
+        <h2><?php echo esc_html__('Environment Connection Secret', 'wphaven-connect'); ?></h2>
+        <p class="description" style="max-width: 640px;">
+            <?php echo esc_html__('This shared secret authenticates connections between environments (such as content transfers). It must be identical on development, staging, maintenance and production. Paste the same value into every environment, or generate one here and copy it to the others.', 'wphaven-connect'); ?>
+        </p>
+
+        <?php if ($notice === 'saved'): ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php echo esc_html__('Connection secret saved.', 'wphaven-connect'); ?></p>
+            </div>
+        <?php elseif ($notice === 'regenerated'): ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php echo esc_html__('A new connection secret was generated. Copy it to your other environments.', 'wphaven-connect'); ?></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($is_locked): ?>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php echo esc_html__('Current Secret', 'wphaven-connect'); ?></th>
+                    <td>
+                        <input type="text" class="large-text code" readonly value="<?php echo esc_attr($secret !== null ? $secret : ''); ?>" onclick="this.select();">
+                        <?php echo $this->getConstantOverrideHtml(ConnectionSecret::CONSTANT_NAME); ?>
+                    </td>
+                </tr>
+            </table>
+        <?php else: ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('wphaven_save_connection_secret', 'wphaven_connection_secret_nonce'); ?>
+                <input type="hidden" name="action" value="wphaven_save_connection_secret">
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><label for="wphaven_connection_secret"><?php echo esc_html__('Secret', 'wphaven-connect'); ?></label></th>
+                        <td>
+                            <input id="wphaven_connection_secret" name="wphaven_connection_secret" type="text" class="large-text code"
+                                value="<?php echo esc_attr($secret !== null ? $secret : ''); ?>"
+                                placeholder="<?php echo esc_attr__('Paste a secret from another environment, or generate one.', 'wphaven-connect'); ?>">
+                            <p class="description"><?php echo esc_html__('Editable so you can paste the same value across environments.', 'wphaven-connect'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+                <p class="submit" style="display:flex; gap:8px; align-items:center;">
+                    <?php submit_button(__('Save Secret', 'wphaven-connect'), 'primary', 'save', false); ?>
+                    <?php
+                    submit_button(
+                        $secret === null ? __('Generate New', 'wphaven-connect') : __('Regenerate', 'wphaven-connect'),
+                        'secondary',
+                        'regenerate',
+                        false,
+                        $secret === null ? [] : ['onclick' => "return confirm('" . esc_js(__('Regenerating replaces the current secret and will break connections until you copy the new value to every environment. Continue?', 'wphaven-connect')) . "');"]
+                    );
+                    ?>
+                </p>
+            </form>
+        <?php endif; ?>
+        <?php
+    }
+
+    public function handleConnectionSecret()
+    {
+        $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
+        $is_admin = current_user_can('manage_options');
+
+        if (!$is_admin || !$is_elevated) {
+            wp_die(__('Unauthorized: You do not have permission to perform this action.', 'wphaven-connect'));
+        }
+
+        $nonce = isset($_POST['wphaven_connection_secret_nonce']) ? wp_unslash($_POST['wphaven_connection_secret_nonce']) : '';
+        if (empty($nonce) || !wp_verify_nonce(sanitize_text_field($nonce), 'wphaven_save_connection_secret')) {
+            wp_die('Invalid Nonce');
+        }
+
+        if (isset($_POST['regenerate'])) {
+            ConnectionSecret::regenerate();
+            $result = 'regenerated';
+        } else {
+            $value = isset($_POST['wphaven_connection_secret']) ? sanitize_text_field(wp_unslash($_POST['wphaven_connection_secret'])) : '';
+            ConnectionSecret::set($value);
+            $result = 'saved';
+        }
+
+        $redirect = add_query_arg(
+            ['page' => 'wphaven-connect', 'wphaven_secret' => $result],
+            admin_url('options-general.php')
+        );
+        wp_safe_redirect($redirect);
+        exit;
+    }
+
+    public function handlePopulateEnvironments()
+    {
+        $is_elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
+        if (! current_user_can('manage_options') || ! $is_elevated) {
+            wp_die(__('Unauthorized: You do not have permission to perform this action.', 'wphaven-connect'));
+        }
+
+        $nonce = isset($_POST['wphaven_populate_nonce']) ? wp_unslash($_POST['wphaven_populate_nonce']) : '';
+        if (empty($nonce) || ! wp_verify_nonce(sanitize_text_field($nonce), 'wphaven_populate_environments')) {
+            wp_die('Invalid Nonce');
+        }
+
+        $incoming = $this->fetchEnvironmentsFromApi();
+        $result = 'error';
+
+        if (is_array($incoming) && ! empty($incoming)) {
+            $opts = get_option(self::OPTION_NAME, []);
+            if (! is_array($opts)) {
+                $opts = [];
+            }
+            $existing = isset($opts['environments']) && is_array($opts['environments']) ? $opts['environments'] : [];
+            $opts['environments'] = Environments::merge($existing, $incoming);
+            update_option(self::OPTION_NAME, $opts);
+            $result = 'populated';
+        }
+
+        $redirect = add_query_arg(
+            ['page' => 'wphaven-connect', 'tab' => 'settings', 'wphaven_env' => $result],
+            admin_url('options-general.php')
+        );
+        wp_safe_redirect($redirect);
+        exit;
+    }
+
+    /**
+     * Fetch this site's sibling environments (stage + domain) from the WP Haven
+     * API. Returns an empty array on any failure.
+     *
+     * @return array<int, array{stage: string, domain: string}>
+     */
+    private function fetchEnvironmentsFromApi(): array
+    {
+        $endpoint = $this->getApiBase() . '/environments';
+        $endpoint = add_query_arg([
+            'app_name' => AppName::getOrDetect(),
+            'domain'   => wp_parse_url(site_url(), PHP_URL_HOST),
+        ], $endpoint);
+
+        $response = wp_remote_get($endpoint, ['timeout' => 20]);
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            return [];
+        }
+
+        $data = json_decode(wp_remote_retrieve_body($response), true);
+        if (! is_array($data) || ! isset($data['environments']) || ! is_array($data['environments'])) {
+            return [];
+        }
+
+        return $data['environments'];
+    }
+
+    /**
+     * Resolve the WP Haven API base (constant > option > default), matching
+     * SupportTicketServiceProvider.
+     */
+    private function getApiBase(): string
+    {
+        if (defined('WPHAVEN_API_BASE') && WPHAVEN_API_BASE) {
+            return rtrim(WPHAVEN_API_BASE, '/') . '/api/v1/wphaven-connect';
+        }
+
+        $opts = $this->getOptions();
+        if (! empty($opts['wphaven_api_base'])) {
+            return rtrim($opts['wphaven_api_base'], '/') . '/api/v1/wphaven-connect';
+        }
+
+        return 'https://wphaven.app/api/v1/wphaven-connect';
+    }
+
     public function renderApiBaseField()
     {
         $opts = $this->getOptions();
@@ -487,6 +825,64 @@ class SettingsServiceProvider
             $extra
         );
         echo '<p class="description">' . esc_html__('Base URL for the WP Haven API. Defaults to https://wphaven.app/api if empty.', 'wphaven-connect') . '</p>';
+    }
+
+    public function renderAppNameField()
+    {
+        $name = self::OPTION_NAME . '[app_name]';
+        $is_const = AppName::isLocked();
+        $value = AppName::getOrDetect();
+        $readonly = $is_const ? 'readonly' : '';
+        $extra = $is_const ? ' ' . $this->getConstantOverrideHtml(AppName::CONSTANT_NAME) : '';
+
+        echo sprintf(
+            '<input type="text" name="%s" value="%s" class="regular-text" placeholder="e.g. nucamprv" %s>%s',
+            esc_attr($name),
+            esc_attr($value),
+            $readonly,
+            $extra
+        );
+        echo '<p class="description">' . esc_html__('The site name as it appears in WP Haven. Leave blank to auto-detect from the hostname.', 'wphaven-connect') . '</p>';
+    }
+
+    public function renderEnvironmentsField()
+    {
+        $environments = Environments::all();
+        // Render existing rows plus two blank rows for adding more.
+        $rows = $environments;
+        for ($i = 0; $i < 2; $i++) {
+            $rows[] = ['label' => '', 'url' => ''];
+        }
+        $base = self::OPTION_NAME . '[environments]';
+        ?>
+        <table class="widefat striped" style="max-width:640px;">
+            <thead>
+                <tr>
+                    <th style="width:30%;padding-left:16px;"><?php echo esc_html__('Label', 'wphaven-connect'); ?></th>
+                    <th style="padding-left:16px;"><?php echo esc_html__('URL', 'wphaven-connect'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($rows as $i => $row): ?>
+                    <tr>
+                        <td>
+                            <input type="text" name="<?php echo esc_attr($base . '[' . $i . '][label]'); ?>"
+                                value="<?php echo esc_attr($row['label']); ?>" class="regular-text" placeholder="production"
+                                style="width:100%;">
+                        </td>
+                        <td>
+                            <input type="url" name="<?php echo esc_attr($base . '[' . $i . '][url]'); ?>"
+                                value="<?php echo esc_attr($row['url']); ?>" class="regular-text" placeholder="https://example.com"
+                                style="width:100%;">
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <p class="description">
+            <?php echo esc_html__('Standard labels: production, staging, maintenance. Add extras (e.g. "new"/"old") during server moves. Blank rows and duplicate labels are dropped on save.', 'wphaven-connect'); ?>
+        </p>
+        <?php
     }
 
     public function renderAdminLoginSlugField()
