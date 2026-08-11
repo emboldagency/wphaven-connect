@@ -183,6 +183,24 @@ class SettingsServiceProvider
         add_settings_field('wphaven_404_redirect', __('Blocked Admin Redirect', 'wphaven-connect'), [$this, 'render404RedirectField'], 'wphaven-connect', 'wphaven_connect_general');
         add_settings_field('show_environment_indicator', __('Show environment badge', 'wphaven-connect'), [$this, 'renderCheckboxField'], 'wphaven-connect', 'wphaven_connect_general', ['key' => 'show_environment_indicator', 'desc' => __('Display the current environment (Development, Staging, Production) as a badge in the admin bar.', 'wphaven-connect'), 'const' => 'WPH_SHOW_ENVIRONMENT_INDICATOR']);
 
+        // --- SECTION: Core Updates ---
+        add_settings_section(
+            'wphaven_connect_updates',
+            __('Core Updates', 'wphaven-connect'),
+            function () {
+                echo '<p>' . esc_html__('How WordPress core keeps itself up to date on this site.', 'wphaven-connect') . '</p>';
+            },
+            'wphaven-connect'
+        );
+
+        add_settings_field(
+            CoreAutoUpdatesProvider::OPTION_KEY,
+            __('Automatic minor core updates', 'wphaven-connect'),
+            [$this, 'renderAutoCoreUpdatesField'],
+            'wphaven-connect',
+            'wphaven_connect_updates'
+        );
+
         // --- SECTION: Mail Configuration ---
         add_settings_section(
             'wphaven_connect_mail',
@@ -262,6 +280,11 @@ class SettingsServiceProvider
             $output['show_environment_indicator'] = isset($input['show_environment_indicator']);
         }
 
+        // --- Automatic minor core updates ---
+        if (!defined(CoreAutoUpdatesProvider::CONSTANT_NAME)) {
+            $output[CoreAutoUpdatesProvider::OPTION_KEY] = isset($input[CoreAutoUpdatesProvider::OPTION_KEY]);
+        }
+
         // --- Mail Mode ---
         $valid_modes = ['auto', 'block_all', 'allow_all'];
         if (isset($input['mail_mode']) && in_array($input['mail_mode'], $valid_modes)) {
@@ -303,6 +326,7 @@ class SettingsServiceProvider
             'live_domain_swap' => true,
             'link_on_first_transfer' => true,
             'show_environment_indicator' => true,
+            CoreAutoUpdatesProvider::OPTION_KEY => true,
             'mail_mode' => 'auto', // Default to Auto (Safety Net active)
         ]);
     }
@@ -994,6 +1018,26 @@ class SettingsServiceProvider
         }
         echo '</fieldset>';
         echo '<p class="description">' . esc_html__('Determines if WP Haven should block outgoing emails.', 'wphaven-connect') . '</p>';
+    }
+
+    public function renderAutoCoreUpdatesField()
+    {
+        $this->renderCheckboxField([
+            'key'   => CoreAutoUpdatesProvider::OPTION_KEY,
+            'const' => CoreAutoUpdatesProvider::CONSTANT_NAME,
+            'desc'  => __('Enable automatic minor core updates', 'wphaven-connect'),
+        ]);
+
+        echo '<p class="description">' . esc_html__('Lets WordPress install minor core releases (security and maintenance patches) on its own, as soon as they ship. Major and development releases stay manual. Because core is gitignored on our sites, this also tells WordPress to stop treating the site as a version-controlled checkout — which is what otherwise blocks every automatic update, including per-plugin and per-theme auto-updates you have turned on.', 'wphaven-connect') . '</p>';
+
+        $blocking = CoreAutoUpdatesProvider::blockingConstants();
+        if (! empty($blocking)) {
+            echo '<p class="description wph-const-override">' . wp_kses_post(sprintf(
+                /* translators: %s: comma-separated list of PHP constant names. */
+                __('No effect while <code>%s</code> is set — that disables the updater before this setting is consulted.', 'wphaven-connect'),
+                implode('</code>, <code>', array_map('esc_html', $blocking))
+            )) . '</p>';
+        }
     }
 
     public function renderCheckboxField($args)

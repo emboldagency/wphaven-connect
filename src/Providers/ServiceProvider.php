@@ -23,6 +23,7 @@ class ServiceProvider
         CompareServiceProvider::class,
         ContentTransferServiceProvider::class,
         CookieServiceProvider::class,
+        CoreAutoUpdatesProvider::class,
         CustomAdminLoginProvider::class,
         DatabaseTransferServiceProvider::class,
         DisableMailServiceProvider::class,

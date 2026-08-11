@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.31.1
+Stable tag: 0.32.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.32.0 =
+* Add "Enable automatic minor core updates" (on by default, new Core Updates section): WordPress installs minor core releases — security and maintenance patches — on its own, as soon as they ship, while major and development releases stay manual. Because core is gitignored on our sites, this also stops WordPress treating the site as a version-controlled checkout, which was otherwise blocking every automatic update including per-plugin and per-theme auto-updates. Lockable with the WPH_AUTO_CORE_MINOR_UPDATES constant; the setting notes when AUTOMATIC_UPDATER_DISABLED or DISALLOW_FILE_MODS makes it moot.
 
 = 0.31.1 =
 * Content transfers now adopt an existing matching item on the destination the first time they run, instead of creating a duplicate — so pushing content between environments cloned from each other links them up rather than doubling them. Matched by same type + slug (or same post ID); never adopts a different content type. Toggle "Link Existing Content on First Transfer" in Connection Settings (on by default).

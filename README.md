@@ -27,6 +27,7 @@ WordPress plugin that provides functionality to connect to the remote maintenanc
 - **Compare**: A read-only "Compare" tab showing how this environment diverges from another — table row counts, uploads totals, and per-post-type content divergence (how many posts/pages/products differ or exist on only one side)
 - **Multi-environment targets**: A modular list of environments (production/staging/maintenance + extras) is the destination picker for all transfer tools; the app name auto-detects and the list can be populated from WP Haven
 - **Full Transfer**: A one-click full Database + Uploads clone to/from a chosen environment (a "Full Transfer" tab), guarded by a per-direction typed phrase. Does not deploy code — deploy that separately
+- **Automatic Minor Core Updates**: WordPress installs minor core releases (security/maintenance patches) on its own as soon as they ship, while major and dev releases stay manual (on by default, toggle in Core Updates). Since core is gitignored on our sites, it also stops WordPress treating the site as a VCS checkout — the detection that otherwise blocks all automatic updates
 - **Live Domain Swapping**: On every save, other environments' URLs in post content and ACF fields are rewritten to this site's URL (on by default, toggle in Connection Settings); database syncs do the same across all known environment domains. Production media (ASSET_URL) is always left untouched
 - **Search & Replace**: A "Search & Replace" tab for arbitrary, serialized-data-safe find/replace across selected tables, with a dry run that counts matches before committing
 - **Database Transfer**: A settings-page tab to overwrite selected database tables between this environment and production (both directions), rewriting the source domain to the destination's (serialized-safe). Each table is backed up and swapped atomically; destructive actions require a typed confirmation phrase and run on non-production only
@@ -45,6 +46,7 @@ Configuration is available via:
    - Elevated admin emails
    - WP Haven API base URL
    - Custom admin login slug
+   - Enable automatic minor core updates (on by default)
    - A "Compare" tab showing divergence (table rows, uploads, per-post-type content differences) against a chosen environment
    - App name and a modular list of transfer environments (production/staging/maintenance + extras), with a "Populate from WP Haven" button
    - Environment connection secret (editable, with regenerate)
@@ -60,6 +62,7 @@ Configuration is available via:
    - `WPH_ADMIN_LOGIN_SLUG`: Custom admin login URL slug
    - `WPH_DISABLE_LOGIN_BYPASS`: Set to `true` to force login obfuscation even on `embold.dev` hosts
    - `WPH_SHOW_ENVIRONMENT_INDICATOR`: Show/hide environment indicator badge in admin bar
+   - `WPH_AUTO_CORE_MINOR_UPDATES`: Enable/disable automatic minor core updates (and the VCS-checkout override that lets them run)
    - `WPHAVEN_API_BASE`: WP Haven API base URL
    - `WPHAVEN_APP_NAME`: This site's WP Haven name/slug (overrides the settings field; normally auto-detected)
    - `WPHAVEN_PRODUCTION_URL`: Production peer URL (overrides the "production" environment entry)
