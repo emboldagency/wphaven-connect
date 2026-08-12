@@ -14,7 +14,7 @@ use WPHavenConnect\ContentTransfer\TransferClient;
 use WPHavenConnect\ContentTransfer\ConnectionSecret;
 use WPHavenConnect\ContentTransfer\Environments;
 use WPHavenConnect\ContentTransfer\TransferAuth;
-use WPHavenConnect\Utilities\ElevatedUsers;
+use WPHavenConnect\ContentTransfer\TransferPermissions;
 use WPHavenConnect\Utilities\Environment;
 
 /**
@@ -26,7 +26,8 @@ use WPHavenConnect\Utilities\Environment;
  * content-transfer secret -- deliberately NOT reusing ServiceProvider's
  * apiPermissionsCheck, whose ?debug bypass and IP allowlist are unacceptable on
  * routes that overwrite content. The editor buttons only appear on non-production
- * environments and only for elevated admins.
+ * environments that have transfer targets configured, for users who can edit the
+ * content in question (see TransferPermissions).
  */
 class ContentTransferServiceProvider
 {
@@ -47,8 +48,8 @@ class ContentTransferServiceProvider
 
         add_action('wp_ajax_' . self::AJAX_ACTION, [$this, 'handleAjax']);
 
-        // Editor UI only on non-production environments, for elevated admins.
-        if (Environment::is_production() || ! $this->userCanTransfer()) {
+        // Editor UI only where a transfer is actually possible, for users who can edit content.
+        if (! TransferPermissions::uiAvailable()) {
             return;
         }
 
@@ -170,10 +171,6 @@ class ContentTransferServiceProvider
     {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
 
-        if (! $this->userCanTransfer()) {
-            wp_send_json_error(['message' => __('You are not allowed to transfer content.', 'wphaven-connect')], 403);
-        }
-
         $post_id   = (int) ($_POST['post_id'] ?? 0);
         $direction = sanitize_key($_POST['direction'] ?? '');
         $target    = Environments::cleanLabel($_POST['target'] ?? '');
@@ -183,8 +180,14 @@ class ContentTransferServiceProvider
             'overwrite_conflict' => ! empty($_POST['overwrite_conflict']),
         ];
 
-        if (! $post_id || ! current_user_can('edit_post', $post_id)) {
+        $post = $post_id ? get_post($post_id) : null;
+
+        if (! $post instanceof WP_Post || ! $this->isTransferablePostType($post->post_type)) {
             wp_send_json_error(['message' => __('Invalid post.', 'wphaven-connect')], 400);
+        }
+
+        if (! TransferPermissions::canEditPost($post_id)) {
+            wp_send_json_error(['message' => __('You are not allowed to transfer this content.', 'wphaven-connect')], 403);
         }
 
         if (Environments::urlFor($target) === null) {
@@ -364,13 +367,10 @@ class ContentTransferServiceProvider
             return false;
         }
 
+        if (! TransferPermissions::canEditPostType($post_type)) {
+            return false;
+        }
+
         return (bool) apply_filters('wphaven_content_transfer_supported_post_type', post_type_exists($post_type), $post_type);
-    }
-
-    private function userCanTransfer(): bool
-    {
-        $elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
-
-        return current_user_can('manage_options') && $elevated;
     }
 }

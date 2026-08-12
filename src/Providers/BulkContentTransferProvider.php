@@ -3,15 +3,15 @@
 namespace WPHavenConnect\Providers;
 
 use WPHavenConnect\ContentTransfer\Environments;
-use WPHavenConnect\Utilities\ElevatedUsers;
-use WPHavenConnect\Utilities\Environment;
+use WPHavenConnect\ContentTransfer\TransferPermissions;
 
 /**
  * Bulk content transfer: adds a target picker + Push/Pull buttons to the
  * Posts/Pages/CPT list tables so several items can be transferred at once. It
  * has no backend of its own — the JS loops the existing per-post
  * content-transfer ajax action (ContentTransferServiceProvider) over the
- * checked rows. Non-production only, elevated admins only.
+ * checked rows. Non-production only, and only for users who can edit that post
+ * type (each row is still permission-checked server side).
  */
 class BulkContentTransferProvider
 {
@@ -87,17 +87,16 @@ class BulkContentTransferProvider
 
     private function active(): bool
     {
-        $elevated = class_exists(ElevatedUsers::class) && ElevatedUsers::currentIsElevated();
-
-        return current_user_can('manage_options')
-            && $elevated
-            && ! Environment::is_production()
-            && ! empty(Environments::selectableTargets());
+        return TransferPermissions::uiAvailable();
     }
 
     private function isTransferablePostType(string $post_type): bool
     {
         if ($post_type === '' || in_array($post_type, ['attachment', 'revision', 'wp_block', 'wp_template', 'wp_navigation'], true)) {
+            return false;
+        }
+
+        if (! TransferPermissions::canEditPostType($post_type)) {
             return false;
         }
 

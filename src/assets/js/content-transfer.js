@@ -228,6 +228,12 @@
   // --- Gutenberg ------------------------------------------------------------
 
   function initGutenberg() {
+    // No configured targets (other than this site) means there is nothing to
+    // push to or pull from — don't render dead buttons.
+    if (!(cfg.environments || []).length) {
+      return;
+    }
+
     var el = wp.element.createElement;
     var registerPlugin = wp.plugins.registerPlugin;
     var PluginPostStatusInfo = wp.editPost.PluginPostStatusInfo;
@@ -266,7 +272,7 @@
               width: "100%",
             },
           },
-          environments.length > 1
+          environments.length
             ? el(
                 "select",
                 {
