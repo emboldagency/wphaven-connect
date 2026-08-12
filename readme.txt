@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.32.1
+Stable tag: 0.32.2
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,10 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.32.2 =
+* The editor panel now explains why it has no Push/Pull buttons instead of disappearing: either no other environments are configured, or every configured environment points at this site's own URL. The latter is easy to end up with — an environment whose URL matches the site it's running on is silently dropped from every target picker, since a site can't transfer to itself — so those rows are now flagged in red in the settings Environments table, where you fix them.
+* Fix the transfer UI evaluating its own availability on plugins_loaded, before post types and their capabilities exist. Each screen now decides for itself, which is what makes the per-post-type capability check (products vs pages) reliable.
 
 = 0.32.1 =
 * The editor sidebar and list-screen Push/Pull buttons are now available to anyone who can edit the content — editors and above, and authors on their own posts — instead of elevated admins only. Each transfer is still permission-checked per item server side, and the post type's own capability applies (a shop manager gets them on products, not on pages). The full-page tools (Database, Uploads, Search & Replace, Compare) and the WP Haven Connect settings screen remain restricted to elevated admins.

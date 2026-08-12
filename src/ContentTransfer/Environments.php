@@ -59,13 +59,32 @@ class Environments
      */
     public static function selectableTargets(): array
     {
+        return array_values(array_filter(self::all(), static fn ($environment) => ! self::isSelf($environment['url'])));
+    }
+
+    /**
+     * Does this URL point at the site we're running on?
+     */
+    public static function isSelf(string $url): bool
+    {
         $self = strtolower((string) wp_parse_url(site_url(), PHP_URL_HOST));
+        $host = strtolower((string) wp_parse_url($url, PHP_URL_HOST));
 
-        return array_values(array_filter(self::all(), static function ($environment) use ($self) {
-            $host = strtolower((string) wp_parse_url($environment['url'], PHP_URL_HOST));
+        return $host === '' || $host === $self;
+    }
 
-            return $host !== '' && $host !== $self;
-        }));
+    /**
+     * Labels of environments whose URL is this very site -- misconfiguration
+     * worth reporting, since they silently disappear from every target picker.
+     *
+     * @return string[]
+     */
+    public static function selfLabels(): array
+    {
+        return array_values(array_map(
+            static fn ($e) => $e['label'],
+            array_filter(self::all(), static fn ($e) => self::isSelf($e['url']))
+        ));
     }
 
     /**

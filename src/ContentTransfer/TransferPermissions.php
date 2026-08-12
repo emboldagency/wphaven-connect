@@ -13,6 +13,11 @@ use WPHavenConnect\Utilities\Environment;
  * editors and above, plus authors on their own posts -- may do it. The heavier
  * whole-site tools (database transfer, uploads sync, search-replace, settings)
  * stay gated behind manage_options + ElevatedUsers.
+ *
+ * Every check here is called late (on an admin screen), never while plugins are
+ * still loading: custom post types and their capabilities don't exist until
+ * `init`, so an early check would silently answer "no" for products and other
+ * CPTs.
  */
 class TransferPermissions
 {
@@ -42,13 +47,19 @@ class TransferPermissions
     }
 
     /**
-     * Coarse gate for hooking up the admin UI at all: some editing capability,
-     * on a non-production environment that has transfer targets configured.
+     * Is transferring possible from this site at all? Production is the
+     * destination, never the source of a manual transfer.
      */
     public static function uiAvailable(): bool
     {
-        return current_user_can('edit_posts')
-            && ! Environment::is_production()
-            && ! empty(Environments::selectableTargets());
+        return ! Environment::is_production();
+    }
+
+    /**
+     * Are there other environments to push to / pull from?
+     */
+    public static function hasTargets(): bool
+    {
+        return ! empty(Environments::selectableTargets());
     }
 }

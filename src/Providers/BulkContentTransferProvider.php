@@ -87,7 +87,7 @@ class BulkContentTransferProvider
 
     private function active(): bool
     {
-        return TransferPermissions::uiAvailable();
+        return TransferPermissions::uiAvailable() && TransferPermissions::hasTargets();
     }
 
     private function isTransferablePostType(string $post_type): bool

@@ -228,12 +228,6 @@
   // --- Gutenberg ------------------------------------------------------------
 
   function initGutenberg() {
-    // No configured targets (other than this site) means there is nothing to
-    // push to or pull from — don't render dead buttons.
-    if (!(cfg.environments || []).length) {
-      return;
-    }
-
     var el = wp.element.createElement;
     var registerPlugin = wp.plugins.registerPlugin;
     var PluginPostStatusInfo = wp.editPost.PluginPostStatusInfo;
@@ -257,6 +251,16 @@
         }
         runFlow(direction, currentPostId(), target, target, setStatus);
       };
+
+      // No targets configured (other than this site): say so rather than
+      // offering buttons that can only fail — or vanishing without explanation.
+      if (!environments.length) {
+        return el(
+          PluginPostStatusInfo,
+          { className: "wphaven-content-transfer" },
+          el("p", { className: "description", style: { margin: 0 } }, i18n.noEnvironments)
+        );
+      }
 
       return el(
         PluginPostStatusInfo,

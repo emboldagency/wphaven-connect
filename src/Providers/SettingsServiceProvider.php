@@ -904,6 +904,11 @@ class SettingsServiceProvider
                             <input type="url" name="<?php echo esc_attr($base . '[' . $i . '][url]'); ?>"
                                 value="<?php echo esc_attr($row['url']); ?>" class="regular-text" placeholder="https://example.com"
                                 style="width:100%;">
+                            <?php if ($row['url'] !== '' && Environments::isSelf($row['url'])): ?>
+                                <p class="description" style="color:#b32d2e;margin:4px 0 0;">
+                                    <?php echo esc_html__('This is this site\'s own URL, so it is never offered as a transfer target.', 'wphaven-connect'); ?>
+                                </p>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

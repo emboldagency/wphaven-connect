@@ -48,11 +48,9 @@ class ContentTransferServiceProvider
 
         add_action('wp_ajax_' . self::AJAX_ACTION, [$this, 'handleAjax']);
 
-        // Editor UI only where a transfer is actually possible, for users who can edit content.
-        if (! TransferPermissions::uiAvailable()) {
-            return;
-        }
-
+        // NOTE: no capability or environment gating here -- register() runs on
+        // plugins_loaded:0, before post types (and therefore their capabilities)
+        // are registered. Each callback below gates itself once the screen is known.
         add_action('enqueue_block_editor_assets', [$this, 'enqueueBlockEditorAssets']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueClassicAssets']);
         add_action('post_submitbox_start', [$this, 'renderClassicButton']);
@@ -268,7 +266,7 @@ class ContentTransferServiceProvider
 
     public function enqueueClassicAssets(string $hook): void
     {
-        if (! in_array($hook, ['post.php', 'post-new.php'], true)) {
+        if (! in_array($hook, ['post.php', 'post-new.php'], true) || ! $this->isEditablePostScreen()) {
             return;
         }
 
@@ -291,7 +289,7 @@ class ContentTransferServiceProvider
     public function renderClassicButton(): void
     {
         global $post;
-        if (! $post instanceof WP_Post || ! $this->isTransferablePostType($post->post_type)) {
+        if (! $post instanceof WP_Post || ! $this->isEditablePostScreen()) {
             return;
         }
 
@@ -338,8 +336,29 @@ class ContentTransferServiceProvider
                 'sent'          => __('Sent.', 'wphaven-connect'),
                 'pulled'        => __('Updated — reloading to show the new content…', 'wphaven-connect'),
                 'error'         => __('Transfer failed.', 'wphaven-connect'),
+                'noEnvironments' => $this->noTargetsMessage(),
             ],
         ];
+    }
+
+    /**
+     * Why there is nothing to transfer to. "None configured" and "every one of
+     * them is this site" look identical in the picker but need different fixes,
+     * so say which it is.
+     */
+    private function noTargetsMessage(): string
+    {
+        $self = Environments::selfLabels();
+
+        if (empty($self)) {
+            return __('No other environments are configured for content transfer.', 'wphaven-connect');
+        }
+
+        return sprintf(
+            /* translators: %s: comma-separated environment labels, e.g. "production, maintenance". */
+            __('Every configured environment (%s) points at this site\'s own URL, so there is nothing to transfer to. Fix the URLs in WP Haven Connect settings.', 'wphaven-connect'),
+            implode(', ', $self)
+        );
     }
 
     private function assetUrl(string $relative): string
@@ -357,17 +376,22 @@ class ContentTransferServiceProvider
     private function isEditablePostScreen(): bool
     {
         $screen = get_current_screen();
-
-        return $screen && $screen->base === 'post' && $this->isTransferablePostType($screen->post_type);
-    }
-
-    private function isTransferablePostType(string $post_type): bool
-    {
-        if (in_array($post_type, ['attachment', 'revision', 'wp_block', 'wp_template', 'wp_navigation'], true)) {
+        if (! $screen || $screen->base !== 'post') {
             return false;
         }
 
-        if (! TransferPermissions::canEditPostType($post_type)) {
+        return TransferPermissions::uiAvailable()
+            && TransferPermissions::canEditPostType((string) $screen->post_type)
+            && $this->isTransferablePostType((string) $screen->post_type);
+    }
+
+    /**
+     * Whether this *kind* of content can be transferred at all. Purely about the
+     * post type -- permissions live in TransferPermissions.
+     */
+    private function isTransferablePostType(string $post_type): bool
+    {
+        if (in_array($post_type, ['attachment', 'revision', 'wp_block', 'wp_template', 'wp_navigation'], true)) {
             return false;
         }
 
