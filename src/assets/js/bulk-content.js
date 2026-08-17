@@ -133,7 +133,7 @@
 
   // --- Sync new: find content on the target this site doesn't have yet -----
 
-  function pullNew(contentId) {
+  function pullNew(contentId, overwriteConflict, preview) {
     var body = new FormData();
     body.append("action", cfg.action);
     body.append("nonce", cfg.nonce);
@@ -141,7 +141,22 @@
     body.append("target", targetSelect.value);
     body.append("content_id", contentId);
     body.append("post_type", cfg.postType);
-    body.append("preview", 0);
+    body.append("preview", preview ? 1 : 0);
+    body.append("overwrite_conflict", overwriteConflict ? 1 : 0);
+    return fetch(cfg.ajaxUrl, { method: "POST", credentials: "same-origin", body: body }).then(function (r) {
+      return r.json();
+    });
+  }
+
+  /** Link-only: stamp the content id onto an already-matched local post without touching its content. */
+  function linkOne(postId, contentId) {
+    var body = new FormData();
+    body.append("action", cfg.action);
+    body.append("nonce", cfg.nonce);
+    body.append("direction", "link");
+    body.append("target", targetSelect.value);
+    body.append("post_id", postId);
+    body.append("content_id", contentId);
     return fetch(cfg.ajaxUrl, { method: "POST", credentials: "same-origin", body: body }).then(function (r) {
       return r.json();
     });
@@ -182,25 +197,31 @@
 
     var rowCbs = [];
     items.forEach(function (item) {
-      var row = document.createElement("label");
-      row.style.cssText = "display:block;padding:6px 0;border-bottom:1px solid #f0f0f0;";
+      var row = document.createElement("div");
+      row.style.cssText = "padding:6px 0;border-bottom:1px solid #f0f0f0;";
+
+      var line = document.createElement("label");
+      line.style.cssText = "display:block;";
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = true;
       cb.value = item.content_id;
+      cb._item = item;
       rowCbs.push(cb);
-      row.appendChild(cb);
-      var hint = item.adopt_id ? fmt(i18n.willAdopt, item.adopt_id) : i18n.willCreate;
-      row.appendChild(document.createTextNode(" " + (item.title || item.slug || item.content_id) + " — " + hint));
+      line.appendChild(cb);
+      line.appendChild(document.createTextNode(" " + (item.title || item.slug || item.content_id)));
+      row.appendChild(line);
+
+      var statusSpan = document.createElement("span");
+      statusSpan.className = "description";
+      statusSpan.style.cssText = "display:block;padding-left:22px;font-size:12px;";
+      statusSpan.textContent = item.adopt_id ? fmt(i18n.willAdopt, item.adopt_id) : i18n.willCreate;
+      cb._statusEl = statusSpan;
+      row.appendChild(statusSpan);
+
       list.appendChild(row);
     });
     box.appendChild(list);
-
-    selectAllCb.addEventListener("change", function () {
-      rowCbs.forEach(function (cb) {
-        cb.checked = selectAllCb.checked;
-      });
-    });
 
     var footer = document.createElement("div");
     footer.style.cssText = "padding:14px 20px;border-top:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:10px;";
@@ -211,24 +232,42 @@
     cancelBtn.type = "button";
     cancelBtn.className = "button";
     cancelBtn.textContent = i18n.cancel;
+    var linkBtnModal = document.createElement("button");
+    linkBtnModal.type = "button";
+    linkBtnModal.className = "button";
     var pullBtnModal = document.createElement("button");
     pullBtnModal.type = "button";
     pullBtnModal.className = "button button-primary";
 
-    var updatePullLabel = function () {
+    var updateButtonLabels = function () {
       var checked = rowCbs.filter(function (cb) {
-        return cb.checked;
-      }).length;
-      pullBtnModal.textContent = fmt(i18n.pullSelected, checked);
-      pullBtnModal.disabled = !checked;
+        return cb.checked && !cb.disabled;
+      });
+      var linkable = checked.filter(function (cb) {
+        return cb._item.adopt_id;
+      });
+      pullBtnModal.textContent = fmt(i18n.pullSelected, checked.length);
+      pullBtnModal.disabled = !checked.length;
+      linkBtnModal.textContent = fmt(i18n.linkSelected, linkable.length);
+      linkBtnModal.disabled = !linkable.length;
     };
     rowCbs.forEach(function (cb) {
-      cb.addEventListener("change", updatePullLabel);
+      cb.addEventListener("change", updateButtonLabels);
     });
-    updatePullLabel();
+    updateButtonLabels();
+
+    selectAllCb.addEventListener("change", function () {
+      rowCbs.forEach(function (cb) {
+        if (!cb.disabled) {
+          cb.checked = selectAllCb.checked;
+        }
+      });
+      updateButtonLabels();
+    });
 
     footer.appendChild(footerStatus);
     footer.appendChild(cancelBtn);
+    footer.appendChild(linkBtnModal);
     footer.appendChild(pullBtnModal);
     box.appendChild(footer);
 
@@ -236,28 +275,65 @@
       closeModal(overlay);
     });
 
-    pullBtnModal.addEventListener("click", function () {
-      var selected = rowCbs.filter(function (cb) {
-        return cb.checked;
-      });
-      if (!selected.length) {
+    // Preview the rows that would overwrite an existing post, so a conflict
+    // (edited locally more recently than this version) is caught and
+    // unchecked before the user commits, rather than failing silently in the
+    // batch. Rows that would only create a new draft carry no such risk.
+    var previewChain = Promise.resolve();
+    rowCbs.forEach(function (cb) {
+      if (!cb._item.adopt_id) {
         return;
       }
+      cb._statusEl.textContent = i18n.checking;
+      previewChain = previewChain
+        .then(function () {
+          return pullNew(cb.value, false, true);
+        })
+        .then(function (res) {
+          if (!res || !res.success) {
+            cb._item.previewFailed = true;
+            cb.checked = false;
+            cb.disabled = true;
+            cb._statusEl.textContent = fmt(i18n.previewFailed, (res && res.data && res.data.message) || i18n.error);
+            updateButtonLabels();
+            return;
+          }
+          var diff = res.data;
+          cb._item.conflict = !!diff.conflict;
+          if (diff.conflict) {
+            cb.checked = false;
+            cb._statusEl.textContent = i18n.conflictWarn;
+          } else {
+            cb._statusEl.textContent = fmt(i18n.willUpdate, (diff.changed_meta || []).length);
+          }
+          updateButtonLabels();
+        })
+        .catch(function () {
+          cb._item.previewFailed = true;
+          cb.checked = false;
+          cb.disabled = true;
+          cb._statusEl.textContent = fmt(i18n.previewFailed, i18n.error);
+          updateButtonLabels();
+        });
+    });
 
+    function runBatch(selected, describe, perform, onRowDone, doneMessage) {
       cancelBtn.disabled = true;
       pullBtnModal.disabled = true;
+      linkBtnModal.disabled = true;
       selectAllCb.disabled = true;
 
       var done = 0;
       var ok = 0;
       var failed = 0;
+      var failedTitles = [];
       var chain = Promise.resolve();
 
       selected.forEach(function (cb) {
         chain = chain
           .then(function () {
-            footerStatus.textContent = fmt(i18n.pullingNew, done + 1, selected.length);
-            return pullNew(cb.value);
+            footerStatus.textContent = fmt(describe, done + 1, selected.length);
+            return perform(cb);
           })
           .then(function (res) {
             done++;
@@ -265,22 +341,83 @@
               ok++;
             } else {
               failed++;
+              failedTitles.push(cb._item.title || cb._item.slug || cb.value);
             }
+            onRowDone(cb, res);
           })
           .catch(function () {
             done++;
             failed++;
+            failedTitles.push(cb._item.title || cb._item.slug || cb.value);
+            onRowDone(cb, null);
           });
       });
 
       chain.then(function () {
-        footerStatus.textContent = fmt(i18n.doneNew, ok, failed);
-        cancelBtn.textContent = i18n.cancel;
+        var summary = fmt(doneMessage, ok, failed);
+        if (failedTitles.length) {
+          summary += " " + fmt(i18n.failedList, failedTitles.join(", "));
+        }
+        footerStatus.textContent = summary;
         cancelBtn.disabled = false;
         cancelBtn.addEventListener("click", function () {
           window.location.reload();
         });
       });
+    }
+
+    linkBtnModal.addEventListener("click", function () {
+      var selected = rowCbs.filter(function (cb) {
+        return cb.checked && !cb.disabled && cb._item.adopt_id;
+      });
+      if (!selected.length) {
+        return;
+      }
+
+      runBatch(
+        selected,
+        i18n.linkingRow,
+        function (cb) {
+          cb._statusEl.textContent = i18n.linkingRowStatus;
+          return linkOne(cb._item.adopt_id, cb.value);
+        },
+        function (cb, res) {
+          if (res && res.success) {
+            cb._statusEl.textContent = i18n.linkedRow;
+            cb.disabled = true;
+          } else {
+            cb._statusEl.textContent = fmt(i18n.failedRow, (res && res.data && res.data.message) || i18n.error);
+          }
+        },
+        i18n.doneLink
+      );
+    });
+
+    pullBtnModal.addEventListener("click", function () {
+      var selected = rowCbs.filter(function (cb) {
+        return cb.checked && !cb.disabled;
+      });
+      if (!selected.length) {
+        return;
+      }
+
+      runBatch(
+        selected,
+        i18n.pullingNew,
+        function (cb) {
+          cb._statusEl.textContent = i18n.pullingRow;
+          return pullNew(cb.value, !!cb._item.conflict, false);
+        },
+        function (cb, res) {
+          if (res && res.success) {
+            cb._statusEl.textContent = i18n.pulledRow;
+            cb.disabled = true;
+          } else {
+            cb._statusEl.textContent = fmt(i18n.failedRow, (res && res.data && res.data.message) || i18n.error);
+          }
+        },
+        i18n.doneNew
+      );
     });
 
     overlay.appendChild(box);

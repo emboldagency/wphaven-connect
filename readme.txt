@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.33.0
+Stable tag: 0.34.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -14,9 +14,9 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
-= 0.33.0 =
+= 0.34.0 =
 * Fix: pulling a post that has never been transferred no longer fails outright when the target environment already has a matching item (same type + slug, or same post id) — the pull now adopts it and links the two, the same way a first push already did on its receiving end. Previously, only pushing could establish that first link, which meant content created directly in an environment that has no Push button (production) could never be pulled elsewhere.
-* Add "Sync new from…" to the Posts/Pages/CPT list screens: scans the chosen environment for content of that type this site doesn't have a linked copy of yet, and lets you pick which of it to pull in as new drafts (or link to a matching existing item) — for the case where content originates on an environment you can only pull from, not push to.
+* Add "Sync new from…" to the Posts/Pages/CPT list screens: scans the chosen environment for content of that type this site doesn't have a linked copy of yet, and lists what's missing. Matched items (same type + slug, or same post id) can be pulled in — with a per-item conflict check first, so anything edited locally more recently than the incoming version is flagged and excluded rather than silently overwritten — or just linked without touching their content at all, for environments that already have matching content built outside of a transfer (a database clone, a separate migration) and only need their records reconciled. Unmatched items are pulled in as new drafts. Failures are reported by item, not just a count.
 
 = 0.32.2 =
 * The editor panel now explains why it has no Push/Pull buttons instead of disappearing: either no other environments are configured, or every configured environment points at this site's own URL. The latter is easy to end up with — an environment whose URL matches the site it's running on is silently dropped from every target picker, since a site can't transfer to itself — so those rows are now flagged in red in the settings Environments table, where you fix them.

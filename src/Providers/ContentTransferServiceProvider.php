@@ -264,7 +264,9 @@ class ContentTransferServiceProvider
      * production) or pull (production -> this site), optionally as a dry run. A
      * pull may also target content that doesn't exist locally yet -- no post_id,
      * a content_id from a sync scan instead -- in which case it's gated on the
-     * post type's edit capability rather than a specific post.
+     * post type's edit capability rather than a specific post. A third direction,
+     * "link", writes the content id onto an existing local post without pulling
+     * or changing anything about it (see doLinkOnly()).
      */
     public function handleAjax(): void
     {
@@ -306,11 +308,15 @@ class ContentTransferServiceProvider
             wp_send_json_error(['message' => __('Set an environment connection secret in WP Haven Connect settings first.', 'wphaven-connect')], 400);
         }
 
-        $result = $pulling_new
-            ? $this->doPullNew($content_id, $target, $preview, $args)
-            : ($direction === 'pull'
-                ? $this->doPull($post_id, $target, $preview, $args)
-                : $this->doPush($post_id, $target, $preview, $args));
+        if ($pulling_new) {
+            $result = $this->doPullNew($content_id, $target, $preview, $args);
+        } elseif ($direction === 'pull') {
+            $result = $this->doPull($post_id, $target, $preview, $args);
+        } elseif ($direction === 'link') {
+            $result = $this->doLinkOnly($post_id, $content_id);
+        } else {
+            $result = $this->doPush($post_id, $target, $preview, $args);
+        }
 
         if (is_wp_error($result)) {
             wp_send_json_error([
@@ -473,6 +479,35 @@ class ContentTransferServiceProvider
         $importer = new ContentImporter();
 
         return $preview ? $importer->preview($envelope) : $importer->import($envelope, $args);
+    }
+
+    /**
+     * Write a content id onto a local post without importing anything -- for
+     * reconciling environments that already carry matching content built
+     * outside of a transfer (a database clone, a separate migration), so
+     * push/pull can address it going forward without ever overwriting it. The
+     * content id is already minted on the remote by the time this runs (the
+     * "sync new" scan ensures it), so this is a pure local write.
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    private function doLinkOnly(int $post_id, string $content_id)
+    {
+        if ($content_id === '') {
+            return new WP_Error('wphaven_link_missing_content_id', __('No content id provided.', 'wphaven-connect'), ['status' => 400]);
+        }
+
+        if (ContentIdentity::get($post_id) !== null) {
+            return new WP_Error(
+                'wphaven_already_linked',
+                __('This post is already linked to something else -- resolve that link before linking it here.', 'wphaven-connect'),
+                ['status' => 409]
+            );
+        }
+
+        ContentIdentity::assign($post_id, $content_id);
+
+        return ['post_id' => $post_id, 'linked' => true];
     }
 
     public function enqueueBlockEditorAssets(): void
