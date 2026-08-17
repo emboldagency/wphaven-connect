@@ -46,6 +46,7 @@ class BulkContentTransferProvider
             <button type="button" class="button wphaven-bulk-push"></button>
             <button type="button" class="button wphaven-bulk-pull"></button>
             <label style="white-space:nowrap;"><input type="checkbox" class="wphaven-bulk-overwrite"> <?php echo esc_html__('Overwrite if changed', 'wphaven-connect'); ?></label>
+            <button type="button" class="button wphaven-sync-new"></button>
             <span class="wphaven-bulk-status description"></span>
         </span>
         <?php
@@ -70,17 +71,33 @@ class BulkContentTransferProvider
         );
 
         wp_localize_script('wphaven-bulk-content', 'wphavenBulkContent', [
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce'   => wp_create_nonce(ContentTransferServiceProvider::NONCE_ACTION),
-            'action'  => ContentTransferServiceProvider::AJAX_ACTION,
-            'i18n'    => [
-                'pushTo'      => __('Push to %s', 'wphaven-connect'),
-                'pullFrom'    => __('Pull from %s', 'wphaven-connect'),
-                'none'        => __('Select one or more items first (tick the checkboxes).', 'wphaven-connect'),
-                'confirmPush' => __('Push %1$s selected item(s) to "%2$s"?', 'wphaven-connect'),
-                'confirmPull' => __('Overwrite %1$s selected item(s) with the version from "%2$s"?', 'wphaven-connect'),
-                'working'     => __('Transferring %1$s of %2$s…', 'wphaven-connect'),
-                'done'        => __('Done: %1$s transferred, %2$s skipped, %3$s failed.', 'wphaven-connect'),
+            'ajaxUrl'   => admin_url('admin-ajax.php'),
+            'nonce'     => wp_create_nonce(ContentTransferServiceProvider::NONCE_ACTION),
+            'action'    => ContentTransferServiceProvider::AJAX_ACTION,
+            'scanAction' => ContentTransferServiceProvider::SCAN_AJAX_ACTION,
+            'postType'  => (string) $screen->post_type,
+            'i18n'      => [
+                'pushTo'        => __('Push to %s', 'wphaven-connect'),
+                'pullFrom'      => __('Pull from %s', 'wphaven-connect'),
+                'syncFrom'      => __('Sync new from %s', 'wphaven-connect'),
+                'none'          => __('Select one or more items first (tick the checkboxes).', 'wphaven-connect'),
+                'confirmPush'   => __('Push %1$s selected item(s) to "%2$s"?', 'wphaven-connect'),
+                'confirmPull'   => __('Overwrite %1$s selected item(s) with the version from "%2$s"?', 'wphaven-connect'),
+                'working'       => __('Transferring %1$s of %2$s…', 'wphaven-connect'),
+                'done'          => __('Done: %1$s transferred, %2$s skipped, %3$s failed.', 'wphaven-connect'),
+                'scanning'      => __('Checking "%s" for content this site doesn\'t have yet…', 'wphaven-connect'),
+                'noneNew'       => __('Nothing new on "%s" — every item there is already linked here.', 'wphaven-connect'),
+                'foundNew'      => __('Found %1$s new item(s) on "%2$s".', 'wphaven-connect'),
+                'truncated'     => __(' (stopped early after scanning %s — narrow it down and run again for the rest.)', 'wphaven-connect'),
+                'modalTitle'    => __('New on %s', 'wphaven-connect'),
+                'selectAll'     => __('Select all', 'wphaven-connect'),
+                'willAdopt'     => __('will link to existing #%s', 'wphaven-connect'),
+                'willCreate'    => __('will create new', 'wphaven-connect'),
+                'pullSelected'  => __('Pull %s selected', 'wphaven-connect'),
+                'cancel'        => __('Cancel', 'wphaven-connect'),
+                'pullingNew'    => __('Pulling %1$s of %2$s…', 'wphaven-connect'),
+                'doneNew'       => __('Done: %1$s pulled, %2$s failed.', 'wphaven-connect'),
+                'error'         => __('Something went wrong.', 'wphaven-connect'),
             ],
         ]);
     }

@@ -7,6 +7,7 @@ use WP_Post;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
+use WP_Query;
 use WPHavenConnect\ContentTransfer\ContentIdentity;
 use WPHavenConnect\ContentTransfer\ContentImporter;
 use WPHavenConnect\ContentTransfer\ContentSerializer;
@@ -33,6 +34,8 @@ class ContentTransferServiceProvider
 {
     const AJAX_ACTION = 'wphaven_content_transfer';
 
+    const SCAN_AJAX_ACTION = 'wphaven_content_sync_scan';
+
     const NONCE_ACTION = 'wphaven_content_transfer';
 
     const SECRET_HEADER = 'Authorization';
@@ -47,6 +50,7 @@ class ContentTransferServiceProvider
         }
 
         add_action('wp_ajax_' . self::AJAX_ACTION, [$this, 'handleAjax']);
+        add_action('wp_ajax_' . self::SCAN_AJAX_ACTION, [$this, 'handleScanAjax']);
 
         // NOTE: no capability or environment gating here -- register() runs on
         // plugins_loaded:0, before post types (and therefore their capabilities)
@@ -84,6 +88,18 @@ class ContentTransferServiceProvider
         register_rest_route('wphaven-connect/v1', '/content/import', [
             'methods'             => WP_REST_Server::CREATABLE,
             'callback'            => [$this, 'handleImport'],
+            'permission_callback' => $permission,
+        ]);
+
+        register_rest_route('wphaven-connect/v1', '/content/match', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [$this, 'handleMatch'],
+            'permission_callback' => $permission,
+        ]);
+
+        register_rest_route('wphaven-connect/v1', '/content/list', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [$this, 'handleList'],
             'permission_callback' => $permission,
         ]);
     }
@@ -162,30 +178,125 @@ class ContentTransferServiceProvider
     }
 
     /**
+     * REST: locate content on this site that is "clearly the same" as a
+     * not-yet-linked post elsewhere (same type + slug, or same post id), and
+     * return its export envelope. Used to bootstrap a link in either direction
+     * when neither side has a content id yet -- the reverse of the adoption
+     * `ContentImporter::resolveTarget()` already does on import.
+     *
+     * @return WP_REST_Response|WP_Error
+     */
+    public function handleMatch(WP_REST_Request $request)
+    {
+        $post_type = sanitize_key((string) $request->get_param('post_type'));
+        $slug      = sanitize_title((string) $request->get_param('slug'));
+        $candidate = (int) $request->get_param('candidate_post_id');
+
+        if (! $this->isTransferablePostType($post_type)) {
+            return new WP_Error('wphaven_invalid_post_type', __('Unsupported post type.', 'wphaven-connect'), ['status' => 400]);
+        }
+
+        $post_id = ContentIdentity::findAdoptable($post_type, $slug, $candidate);
+        if ($post_id === null) {
+            return new WP_Error('wphaven_no_match', __('No matching content on this site.', 'wphaven-connect'), ['status' => 404]);
+        }
+
+        $envelope = (new ContentSerializer())->export($post_id);
+        if (is_wp_error($envelope)) {
+            return $envelope;
+        }
+
+        return new WP_REST_Response($envelope, 200);
+    }
+
+    /**
+     * REST: list this site's posts of a given type (id, slug, title, status,
+     * modified date, content id) so a peer can diff them against what it already
+     * has and offer to pull the ones it's missing. Read-only except for minting a
+     * content id per row -- the same eager `ensure()` that export()/preview()
+     * already do -- so a subsequent pull-by-content-id can address the row.
+     *
+     * @return WP_REST_Response|WP_Error
+     */
+    public function handleList(WP_REST_Request $request)
+    {
+        $post_type = sanitize_key((string) $request->get_param('post_type'));
+        if (! $this->isTransferablePostType($post_type)) {
+            return new WP_Error('wphaven_invalid_post_type', __('Unsupported post type.', 'wphaven-connect'), ['status' => 400]);
+        }
+
+        $paged    = max(1, (int) $request->get_param('paged'));
+        $per_page = min(200, max(1, (int) ($request->get_param('per_page') ?: 100)));
+
+        $query = new WP_Query([
+            'post_type'        => $post_type,
+            'post_status'      => ['publish', 'future', 'draft', 'pending', 'private'],
+            'posts_per_page'   => $per_page,
+            'paged'            => $paged,
+            'orderby'          => 'ID',
+            'order'            => 'ASC',
+            'no_found_rows'    => false,
+            'suppress_filters' => false,
+        ]);
+
+        $items = [];
+        foreach ($query->posts as $post) {
+            $items[] = [
+                'content_id'     => ContentIdentity::ensure((int) $post->ID),
+                'source_post_id' => (int) $post->ID,
+                'post_type'      => $post->post_type,
+                'title'          => get_the_title($post),
+                'slug'           => $post->post_name,
+                'status'         => $post->post_status,
+                'modified_gmt'   => $post->post_modified_gmt,
+            ];
+        }
+
+        return new WP_REST_Response([
+            'items' => $items,
+            'pages' => (int) $query->max_num_pages,
+            'total' => (int) $query->found_posts,
+        ], 200);
+    }
+
+    /**
      * Admin-AJAX entry point for the editor buttons. Drives a push (this site ->
-     * production) or pull (production -> this site), optionally as a dry run.
+     * production) or pull (production -> this site), optionally as a dry run. A
+     * pull may also target content that doesn't exist locally yet -- no post_id,
+     * a content_id from a sync scan instead -- in which case it's gated on the
+     * post type's edit capability rather than a specific post.
      */
     public function handleAjax(): void
     {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
 
-        $post_id   = (int) ($_POST['post_id'] ?? 0);
-        $direction = sanitize_key($_POST['direction'] ?? '');
-        $target    = Environments::cleanLabel($_POST['target'] ?? '');
-        $preview   = ! empty($_POST['preview']);
-        $args      = [
+        $post_id    = (int) ($_POST['post_id'] ?? 0);
+        $content_id = sanitize_text_field((string) ($_POST['content_id'] ?? ''));
+        $post_type  = sanitize_key((string) ($_POST['post_type'] ?? ''));
+        $direction  = sanitize_key($_POST['direction'] ?? '');
+        $target     = Environments::cleanLabel($_POST['target'] ?? '');
+        $preview    = ! empty($_POST['preview']);
+        $args       = [
             'publish'            => ! empty($_POST['publish']),
             'overwrite_conflict' => ! empty($_POST['overwrite_conflict']),
         ];
 
-        $post = $post_id ? get_post($post_id) : null;
+        $pulling_new = ! $post_id && $direction === 'pull' && $content_id !== '';
 
-        if (! $post instanceof WP_Post || ! $this->isTransferablePostType($post->post_type)) {
-            wp_send_json_error(['message' => __('Invalid post.', 'wphaven-connect')], 400);
-        }
+        if ($pulling_new) {
+            if (! $this->isTransferablePostType($post_type) || ! TransferPermissions::canEditPostType($post_type)) {
+                wp_send_json_error(['message' => __('You are not allowed to transfer this content.', 'wphaven-connect')], 403);
+            }
+        } else {
+            $post = $post_id ? get_post($post_id) : null;
 
-        if (! TransferPermissions::canEditPost($post_id)) {
-            wp_send_json_error(['message' => __('You are not allowed to transfer this content.', 'wphaven-connect')], 403);
+            if (! $post instanceof WP_Post || ! $this->isTransferablePostType($post->post_type)) {
+                wp_send_json_error(['message' => __('Invalid post.', 'wphaven-connect')], 400);
+            }
+
+            if (! TransferPermissions::canEditPost($post_id)) {
+                wp_send_json_error(['message' => __('You are not allowed to transfer this content.', 'wphaven-connect')], 403);
+            }
         }
 
         if (Environments::urlFor($target) === null) {
@@ -195,9 +306,11 @@ class ContentTransferServiceProvider
             wp_send_json_error(['message' => __('Set an environment connection secret in WP Haven Connect settings first.', 'wphaven-connect')], 400);
         }
 
-        $result = $direction === 'pull'
-            ? $this->doPull($post_id, $target, $preview, $args)
-            : $this->doPush($post_id, $target, $preview, $args);
+        $result = $pulling_new
+            ? $this->doPullNew($content_id, $target, $preview, $args)
+            : ($direction === 'pull'
+                ? $this->doPull($post_id, $target, $preview, $args)
+                : $this->doPush($post_id, $target, $preview, $args));
 
         if (is_wp_error($result)) {
             wp_send_json_error([
@@ -208,6 +321,79 @@ class ContentTransferServiceProvider
         }
 
         wp_send_json_success($result);
+    }
+
+    /**
+     * Admin-AJAX entry point for the list-screen "sync new" scan: pages through
+     * the target environment's content of this post type and returns the rows
+     * this site doesn't already have a linked copy of.
+     */
+    public function handleScanAjax(): void
+    {
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+
+        $post_type = sanitize_key((string) ($_POST['post_type'] ?? ''));
+        $target    = Environments::cleanLabel($_POST['target'] ?? '');
+
+        if (! $this->isTransferablePostType($post_type) || ! TransferPermissions::canEditPostType($post_type)) {
+            wp_send_json_error(['message' => __('You are not allowed to transfer this content.', 'wphaven-connect')], 403);
+        }
+        if (Environments::urlFor($target) === null) {
+            wp_send_json_error(['message' => __('Choose a source environment (configure it in WP Haven Connect settings first).', 'wphaven-connect')], 400);
+        }
+        if (ConnectionSecret::get() === null) {
+            wp_send_json_error(['message' => __('Set an environment connection secret in WP Haven Connect settings first.', 'wphaven-connect')], 400);
+        }
+
+        $client    = TransferClient::forLabel($target);
+        $cap       = (int) apply_filters('wphaven_content_sync_scan_cap', 2000);
+        $new_items = [];
+        $scanned   = 0;
+        $paged     = 1;
+        $pages     = 1;
+
+        do {
+            $page = $client->listContent($post_type, $paged, 200);
+            if (is_wp_error($page)) {
+                wp_send_json_error([
+                    'message' => $page->get_error_message(),
+                    'code'    => $page->get_error_code(),
+                ], 200);
+            }
+
+            $items = (array) ($page['items'] ?? []);
+            $pages = max(1, (int) ($page['pages'] ?? 1));
+
+            foreach ($items as $item) {
+                $scanned++;
+
+                $local = ContentIdentity::findLocalPost((string) ($item['content_id'] ?? ''));
+                if (is_wp_error($local) || $local !== null) {
+                    continue; // Already linked locally, or ambiguous -- resolve on the post itself.
+                }
+
+                $new_items[] = [
+                    'content_id'   => $item['content_id'] ?? '',
+                    'title'        => $item['title'] ?? '',
+                    'slug'         => $item['slug'] ?? '',
+                    'status'       => $item['status'] ?? '',
+                    'modified_gmt' => $item['modified_gmt'] ?? '',
+                    'adopt_id'     => ContentIdentity::findAdoptable(
+                        (string) ($item['post_type'] ?? $post_type),
+                        (string) ($item['slug'] ?? ''),
+                        (int) ($item['source_post_id'] ?? 0)
+                    ),
+                ];
+            }
+
+            $paged++;
+        } while ($paged <= $pages && $scanned < $cap);
+
+        wp_send_json_success([
+            'items'     => $new_items,
+            'scanned'   => $scanned,
+            'truncated' => $paged <= $pages,
+        ]);
     }
 
     /**
@@ -233,10 +419,52 @@ class ContentTransferServiceProvider
     private function doPull(int $post_id, string $target, bool $preview, array $args)
     {
         $content_id = ContentIdentity::get($post_id);
-        if ($content_id === null) {
-            return new WP_Error('wphaven_no_link', __('This post has never been transferred, so there is no linked copy to pull.', 'wphaven-connect'));
+
+        if ($content_id !== null) {
+            $envelope = TransferClient::forLabel($target)->fetchExport($content_id);
+        } else {
+            // Never linked locally -- before giving up, ask the target whether
+            // it has something "clearly the same" (matching type + slug, or
+            // matching post id) that this pull can adopt, same as a push would
+            // on its receiving end. Covers content created directly on the
+            // target (e.g. production) with no push ever having run.
+            $post     = get_post($post_id);
+            $envelope = TransferClient::forLabel($target)->matchExport(
+                $post instanceof WP_Post ? $post->post_type : '',
+                $post instanceof WP_Post ? $post->post_name : '',
+                $post_id
+            );
+
+            if (is_wp_error($envelope) && $envelope->get_error_code() === 'wphaven_no_match') {
+                return new WP_Error(
+                    'wphaven_no_link',
+                    sprintf(
+                        /* translators: %s: environment label */
+                        __('This post has never been transferred, and no matching content was found on "%s" to link it to.', 'wphaven-connect'),
+                        $target
+                    )
+                );
+            }
         }
 
+        if (is_wp_error($envelope)) {
+            return $envelope;
+        }
+
+        $importer = new ContentImporter();
+
+        return $preview ? $importer->preview($envelope) : $importer->import($envelope, $args);
+    }
+
+    /**
+     * Pull content that doesn't exist locally at all yet, addressed by a
+     * content id obtained from a "sync new" scan rather than a local post.
+     *
+     * @param array{publish?: bool, overwrite_conflict?: bool} $args
+     * @return array<string, mixed>|WP_Error
+     */
+    private function doPullNew(string $content_id, string $target, bool $preview, array $args)
+    {
         $envelope = TransferClient::forLabel($target)->fetchExport($content_id);
         if (is_wp_error($envelope)) {
             return $envelope;

@@ -100,6 +100,37 @@ class TransferClient
     }
 
     /**
+     * Ask the remote for content that is "clearly the same" as an unlinked local
+     * post (same type + slug, or same post id) and fetch its export envelope.
+     * Bootstraps a link when a pull is attempted before either side has ever
+     * been transferred.
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function matchExport(string $post_type, string $slug, int $candidate_post_id)
+    {
+        return $this->request('/content/match', [
+            'post_type'         => $post_type,
+            'slug'              => $slug,
+            'candidate_post_id' => $candidate_post_id,
+        ]);
+    }
+
+    /**
+     * List the remote's posts of a given type, for the "sync new" scan.
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function listContent(string $post_type, int $paged = 1, int $per_page = 100)
+    {
+        return $this->request('/content/list', [
+            'post_type' => $post_type,
+            'paged'     => $paged,
+            'per_page'  => $per_page,
+        ]);
+    }
+
+    /**
      * List the remote's transferable tables (base name, rows, size).
      *
      * @return array<string, mixed>|WP_Error
