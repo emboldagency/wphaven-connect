@@ -30,6 +30,9 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
     /** Throttle: never rewrite the success timestamp more often than this. */
     const SUCCESS_WRITE_INTERVAL = 300;
 
+    /** Consecutive failures required before marking mail unhealthy. */
+    const DEFAULT_FAILURE_THRESHOLD = 3;
+
     public function key(): string
     {
         return 'email';
@@ -64,10 +67,17 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
         }
 
         $message = ($error instanceof WP_Error) ? $error->get_error_message() : 'Unknown mail failure';
+        $sanitized_message = $this->sanitizeMessage($message);
 
         $state['last_failure_at'] = time();
-        $state['last_error']      = substr(sanitize_text_field($message), 0, 200);
+        $state['last_error']      = substr($sanitized_message, 0, 200);
         $state['failure_count']   = (int) $state['failure_count'] + 1;
+
+        // Form/user input errors (e.g. invalid recipient address syntax) do not indicate
+        // a broken mail transport, so they do not count toward consecutive failures.
+        if (!$this->isRecipientInputError($message, (string) $code)) {
+            $state['consecutive_failures'] = (int) ($state['consecutive_failures'] ?? 0) + 1;
+        }
 
         $this->save($state);
     }
@@ -77,8 +87,17 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
         $state = $this->state();
         $now   = time();
 
-        // Throttle writes: a high-volume site shouldn't write an option per email.
-        if ($state['last_success_at'] !== null && ($now - $state['last_success_at']) < self::SUCCESS_WRITE_INTERVAL) {
+        $had_failures = (int) ($state['consecutive_failures'] ?? 0) > 0;
+        $state['consecutive_failures'] = 0;
+
+        // Throttle writes: a high-volume site shouldn't write an option per email,
+        // unless we need to persist a reset of consecutive failures or a recovery.
+        $needs_write = $had_failures
+            || ($state['last_success_at'] === null)
+            || (($now - $state['last_success_at']) >= self::SUCCESS_WRITE_INTERVAL)
+            || (!empty($state['last_failure_at']) && $state['last_failure_at'] > $state['last_success_at']);
+
+        if (!$needs_write) {
             return;
         }
 
@@ -106,7 +125,8 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
             && ($failure_at === null || $blocked_at >= $failure_at)
             && ($success_at === null || $blocked_at >= $success_at);
 
-        $threshold = (int) apply_filters('wphaven_connect_mail_stale_threshold', self::DEFAULT_STALE_THRESHOLD);
+        $stale_threshold   = (int) apply_filters('wphaven_connect_mail_stale_threshold', self::DEFAULT_STALE_THRESHOLD);
+        $failure_threshold = (int) apply_filters('wphaven_connect_mail_failure_threshold', self::DEFAULT_FAILURE_THRESHOLD);
 
         return [
             'blocked'                  => $blocked,
@@ -116,7 +136,9 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
             'last_success_at'          => $success_at === null ? null : gmdate('c', $success_at),
             'last_success_age_seconds' => $success_age,
             'failure_count'            => (int) $state['failure_count'],
-            'stale_threshold_seconds'  => $threshold,
+            'consecutive_failures'     => (int) ($state['consecutive_failures'] ?? 0),
+            'failure_threshold'        => $failure_threshold,
+            'stale_threshold_seconds'  => $stale_threshold,
         ];
     }
 
@@ -132,8 +154,15 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
             return true;
         }
 
-        $failure_age = $metrics['last_failure_age_seconds'];
-        $success_age = $metrics['last_success_age_seconds'];
+        $failure_age          = $metrics['last_failure_age_seconds'];
+        $success_age          = $metrics['last_success_age_seconds'];
+        $consecutive_failures = isset($metrics['consecutive_failures']) ? (int) $metrics['consecutive_failures'] : 0;
+        $failure_threshold    = isset($metrics['failure_threshold']) ? (int) $metrics['failure_threshold'] : self::DEFAULT_FAILURE_THRESHOLD;
+
+        // A single transient glitch or bad recipient does not mark mail unhealthy.
+        if ($consecutive_failures < $failure_threshold) {
+            return true;
+        }
 
         // A success at or after the last failure means mail recovered.
         if ($success_age !== null && $success_age <= $failure_age) {
@@ -146,6 +175,41 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
         }
 
         return false;
+    }
+
+    /**
+     * Identifies recipient/form input errors (e.g. syntax errors or empty recipient)
+     * which are user mistakes rather than outbound mail system failures.
+     */
+    private function isRecipientInputError(string $message, string $code): bool
+    {
+        if (in_array($code, ['invalid_email', 'empty_address', 'wp_mail_invalid_address'], true)) {
+            return true;
+        }
+
+        if (stripos($message, 'invalid address') !== false ||
+            stripos($message, 'empty address') !== false ||
+            stripos($message, 'provide at least one recipient') !== false ||
+            stripos($message, 'invalid recipient') !== false
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Sanitizes error message strings to remove internal file paths and neutralize
+     * signatures that could trip ModSecurity / WAF outbound inspection.
+     */
+    private function sanitizeMessage(string $message): string
+    {
+        $cleaned = sanitize_text_field($message);
+        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]+\.php\b#i', '[file.php]', $cleaned);
+        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]{4,}#', '[path]', $cleaned);
+        $cleaned = preg_replace('/\b(fatal\s+error|parse\s+error|uncaught\s+exception)\b/i', 'mail error', $cleaned);
+
+        return trim($cleaned);
     }
 
     /**
@@ -168,11 +232,12 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
     private function state(): array
     {
         $defaults = [
-            'last_failure_at' => null,
-            'last_error'      => null,
-            'last_success_at' => null,
-            'last_blocked_at' => null,
-            'failure_count'   => 0,
+            'last_failure_at'      => null,
+            'last_error'           => null,
+            'last_success_at'      => null,
+            'last_blocked_at'      => null,
+            'failure_count'        => 0,
+            'consecutive_failures' => 0,
         ];
 
         $stored = get_option(self::OPTION, []);
