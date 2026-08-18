@@ -54,9 +54,14 @@ class SiteHealthServiceProvider
             $label = $this->label($collector);
             // One atomic key/value row per metric, matching core's Info sections.
             foreach ($collector->collect() as $key => $value) {
+                $scalar = $this->scalar($value);
+                if (strpos($key, 'error') !== false) {
+                    $scalar = $this->sanitizeForDisplay($scalar);
+                }
+
                 $fields[$collector->key() . '_' . $key] = [
                     'label' => $label . ': ' . $this->humanizeKey($key),
-                    'value' => $this->scalar($value),
+                    'value' => $scalar,
                 ];
             }
         }
@@ -80,11 +85,17 @@ class SiteHealthServiceProvider
         $healthy = $collector->isHealthy($metrics);
         $label   = $this->label($collector);
 
+        // Map severity: disk and ssl warnings should be 'recommended' rather than 'critical'
+        $status = 'good';
+        if (!$healthy) {
+            $status = in_array($collector->key(), ['disk', 'ssl'], true) ? 'recommended' : 'critical';
+        }
+
         return [
             'label'       => $healthy
                 ? sprintf(__('%s is healthy', 'wphaven-connect'), $label)
                 : sprintf(__('%s needs attention', 'wphaven-connect'), $label),
-            'status'      => $healthy ? 'good' : 'critical',
+            'status'      => $status,
             'badge'       => [
                 'label' => __('WP Haven', 'wphaven-connect'),
                 'color' => 'blue',
@@ -150,13 +161,17 @@ class SiteHealthServiceProvider
         } elseif ($m['last_failure_at'] === null) {
             $items = [$this->item('good', 'No outbound mail failures have been recorded.')];
         } else {
+            $error_text = !empty($m['last_error']) ? $this->sanitizeForDisplay($m['last_error']) : 'unknown error';
             $items = [$this->item($healthy ? 'good' : 'warning', sprintf(
                 'Last send failure %s ago: %s',
                 $this->humanSeconds($m['last_failure_age_seconds']),
-                $m['last_error'] ? $m['last_error'] : 'unknown error'
+                $error_text
             ))];
             if ($m['last_success_at'] !== null) {
                 $items[] = $this->item('info', sprintf('Last successful send %s ago.', $this->humanSeconds($m['last_success_age_seconds'])));
+            }
+            if (!empty($m['consecutive_failures']) && (int) $m['consecutive_failures'] > 1) {
+                $items[] = $this->item('warning', sprintf('%d consecutive send failures recorded.', (int) $m['consecutive_failures']));
             }
         }
 
@@ -229,7 +244,8 @@ class SiteHealthServiceProvider
     private function describeSsl(array $m, bool $healthy): string
     {
         if (empty($m['available'])) {
-            $items = [$this->item('info', sprintf('Certificate could not be read%s.', $m['error'] ? ': ' . $m['error'] : ''))];
+            $error_text = !empty($m['error']) ? ': ' . $this->sanitizeForDisplay($m['error']) : '';
+            $items = [$this->item('info', sprintf('Certificate could not be read%s.', $error_text))];
         } else {
             $days  = $m['days_to_expiry'];
             $when  = $m['expires_at'] ? substr($m['expires_at'], 0, 10) : 'unknown';
@@ -249,6 +265,30 @@ class SiteHealthServiceProvider
     }
 
     /**
+     * Sanitizes error strings for safe HTML rendering to avoid triggering ModSecurity /
+     * OWASP CRS Phase 4 outbound data leakage inspection rules (RESPONSE-950, 951, 953)
+     * and protect internal file paths.
+     */
+    private function sanitizeForDisplay(?string $text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        $cleaned = sanitize_text_field($text);
+
+        // Strip file paths (e.g. /home/embold/... or /var/www/...)
+        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]+\.php\b#i', '[file.php]', $cleaned);
+        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]{4,}#', '[path]', $cleaned);
+
+        // Neutralize error signatures that trip OWASP CRS regexes
+        $cleaned = preg_replace('/\b(fatal\s+error|parse\s+error|uncaught\s+exception|warning|notice)\b/i', 'error', $cleaned);
+        $cleaned = preg_replace('/\b(eval\(\)|sql\s+syntax|select\s+.*\s+from)\b/i', '[detail]', $cleaned);
+
+        return trim($cleaned);
+    }
+
+    /**
      * Fallback for collectors added via filter that we have no bespoke copy for.
      *
      * @param array<string, mixed> $m
@@ -257,7 +297,11 @@ class SiteHealthServiceProvider
     {
         $items = [];
         foreach ($m as $key => $value) {
-            $items[] = $this->item('info', sprintf('%s: %s', $key, $this->scalar($value)));
+            $scalar = $this->scalar($value);
+            if (strpos($key, 'error') !== false) {
+                $scalar = $this->sanitizeForDisplay($scalar);
+            }
+            $items[] = $this->item('info', sprintf('%s: %s', $key, $scalar));
         }
 
         return $this->render('Health signal reported by WP Haven Connect.', $items);
