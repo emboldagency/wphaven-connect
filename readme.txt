@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.34.0
+Stable tag: 0.34.1
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,12 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.34.1 =
+* Fix health error messages being blanked out entirely. The sanitizing added for ModSecurity-fronted sites used a regular expression that failed to compile, so every error string it touched came back empty — the mail failure reason on the /health payload, the Site Health screen's mail and certificate details — while logging a PHP warning on each attempt. Paths and error signatures are now actually scrubbed rather than the whole message being discarded, and a pattern that fails to compile can no longer erase what it was meant to clean. URLs in an error survive intact; absolute filesystem paths do not.
+* Report `consecutive_failures` on the email signal, and require three consecutive failures before mail is marked unhealthy. A single bounced address no longer reads as a broken mail transport, and recipient/input errors (invalid or empty address, no recipient) are excluded from the count entirely since they describe a bad form submission rather than a delivery problem.
+* Disk and SSL warnings now report as "recommended" on the Site Health screen instead of "critical" — both degrade gradually, and neither is the emergency that red implies.
+* Widen the scheduled-post grace window from 15 to 30 minutes, so a post published slightly late by a busy cron run is not counted as missed.
 
 = 0.34.0 =
 * Fix: pulling a post that has never been transferred no longer fails outright when the target environment already has a matching item (same type + slug, or same post id) — the pull now adopts it and links the two, the same way a first push already did on its receiving end. Previously, only pushing could establish that first link, which meant content created directly in an environment that has no Push button (production) could never be pulled elsewhere.
