@@ -2,6 +2,7 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\Health\ErrorSanitizer;
 use WPHavenConnect\Health\HealthCollector;
 use WPHavenConnect\Health\HealthCollectorRegistry;
 
@@ -56,7 +57,7 @@ class SiteHealthServiceProvider
             foreach ($collector->collect() as $key => $value) {
                 $scalar = $this->scalar($value);
                 if (strpos($key, 'error') !== false) {
-                    $scalar = $this->sanitizeForDisplay($scalar);
+                    $scalar = ErrorSanitizer::clean($scalar);
                 }
 
                 $fields[$collector->key() . '_' . $key] = [
@@ -161,7 +162,7 @@ class SiteHealthServiceProvider
         } elseif ($m['last_failure_at'] === null) {
             $items = [$this->item('good', 'No outbound mail failures have been recorded.')];
         } else {
-            $error_text = !empty($m['last_error']) ? $this->sanitizeForDisplay($m['last_error']) : 'unknown error';
+            $error_text = !empty($m['last_error']) ? ErrorSanitizer::clean($m['last_error']) : 'unknown error';
             $items = [$this->item($healthy ? 'good' : 'warning', sprintf(
                 'Last send failure %s ago: %s',
                 $this->humanSeconds($m['last_failure_age_seconds']),
@@ -244,7 +245,7 @@ class SiteHealthServiceProvider
     private function describeSsl(array $m, bool $healthy): string
     {
         if (empty($m['available'])) {
-            $error_text = !empty($m['error']) ? ': ' . $this->sanitizeForDisplay($m['error']) : '';
+            $error_text = !empty($m['error']) ? ': ' . ErrorSanitizer::clean($m['error']) : '';
             $items = [$this->item('info', sprintf('Certificate could not be read%s.', $error_text))];
         } else {
             $days  = $m['days_to_expiry'];
@@ -265,30 +266,6 @@ class SiteHealthServiceProvider
     }
 
     /**
-     * Sanitizes error strings for safe HTML rendering to avoid triggering ModSecurity /
-     * OWASP CRS Phase 4 outbound data leakage inspection rules (RESPONSE-950, 951, 953)
-     * and protect internal file paths.
-     */
-    private function sanitizeForDisplay(?string $text): string
-    {
-        if ($text === null || $text === '') {
-            return '';
-        }
-
-        $cleaned = sanitize_text_field($text);
-
-        // Strip file paths (e.g. /home/embold/... or /var/www/...)
-        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]+\.php\b#i', '[file.php]', $cleaned);
-        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]{4,}#', '[path]', $cleaned);
-
-        // Neutralize error signatures that trip OWASP CRS regexes
-        $cleaned = preg_replace('/\b(fatal\s+error|parse\s+error|uncaught\s+exception|warning|notice)\b/i', 'error', $cleaned);
-        $cleaned = preg_replace('/\b(eval\(\)|sql\s+syntax|select\s+.*\s+from)\b/i', '[detail]', $cleaned);
-
-        return trim($cleaned);
-    }
-
-    /**
      * Fallback for collectors added via filter that we have no bespoke copy for.
      *
      * @param array<string, mixed> $m
@@ -299,7 +276,7 @@ class SiteHealthServiceProvider
         foreach ($m as $key => $value) {
             $scalar = $this->scalar($value);
             if (strpos($key, 'error') !== false) {
-                $scalar = $this->sanitizeForDisplay($scalar);
+                $scalar = ErrorSanitizer::clean($scalar);
             }
             $items[] = $this->item('info', sprintf('%s: %s', $key, $scalar));
         }
