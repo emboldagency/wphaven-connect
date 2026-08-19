@@ -67,7 +67,7 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
         }
 
         $message = ($error instanceof WP_Error) ? $error->get_error_message() : 'Unknown mail failure';
-        $sanitized_message = $this->sanitizeMessage($message);
+        $sanitized_message = ErrorSanitizer::clean($message);
 
         $state['last_failure_at'] = time();
         $state['last_error']      = substr($sanitized_message, 0, 200);
@@ -196,20 +196,6 @@ class EmailHealthCollector implements HealthCollector, BootableCollector
         }
 
         return false;
-    }
-
-    /**
-     * Sanitizes error message strings to remove internal file paths and neutralize
-     * signatures that could trip ModSecurity / WAF outbound inspection.
-     */
-    private function sanitizeMessage(string $message): string
-    {
-        $cleaned = sanitize_text_field($message);
-        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]+\.php\b#i', '[file.php]', $cleaned);
-        $cleaned = preg_replace('#[/\\][a-zA-Z0-9_\-./\\]{4,}#', '[path]', $cleaned);
-        $cleaned = preg_replace('/\b(fatal\s+error|parse\s+error|uncaught\s+exception)\b/i', 'mail error', $cleaned);
-
-        return trim($cleaned);
     }
 
     /**
