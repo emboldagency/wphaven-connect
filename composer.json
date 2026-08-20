@@ -21,7 +21,8 @@
         "format": "phpcbf",
         "build": "bash scripts/build.sh",
         "build:dev": "bash scripts/build.sh --dev",
-        "version:fix": "bash scripts/build.sh --fix"
+        "version:fix": "bash scripts/build.sh --fix",
+        "clean-dist": "bash scripts/clean-dist.sh"
     },
     "config": {
         "allow-plugins": {
