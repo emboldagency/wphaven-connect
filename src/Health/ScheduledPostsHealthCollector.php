@@ -18,7 +18,7 @@ namespace WPHavenConnect\Health;
 class ScheduledPostsHealthCollector implements HealthCollector
 {
     /** Grace (seconds) a post may be past-due before it counts as truly missed. */
-    const DEFAULT_GRACE = 900;
+    const DEFAULT_GRACE = 1800;
 
     public function key(): string
     {
