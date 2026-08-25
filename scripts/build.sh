@@ -130,61 +130,40 @@ rm -f "$DIST_DIR/${PLUGIN_SLUG}"*.zip 2>/dev/null || true
 # otherwise get folded into the new zip (compounding on every run).
 find "dist/extracted" -mindepth 1 -delete 2>/dev/null || true
 
-# Helper function to run wp dist-archive
-run_dist_archive() {
-	local cmd_prefix="$1" # e.g., "docker compose exec -T cli" or ""
-	local target_dir="$2" # e.g., "/var/www/html/..." or "."
-	local output_dir="$3" # e.g., "/tmp" or "dist/archives"
-
-	echo -e "${BLUE}🚀 Running dist-archive...${NC}"
-
-	# Construct the command
-	if [ -z "$cmd_prefix" ]; then
-		# Local execution
-		wp dist-archive . "$output_dir" --create-target-dir --format=zip
-	else
-		# Docker execution
-		# 1. Run the build inside container outputting to temp
-		$cmd_prefix sh -c "cd $target_dir && wp dist-archive . /tmp/ --format=zip --force"
-
-		# 2. Copy out (Assuming the standard naming convention of dist-archive)
-		# Note: dist-archive names files based on the version in the plugin file.
-		local container_id
-		container_id=$(docker compose ps -q cli)
-
-		# We assume the file generated is plugin-slug.version.zip
-		docker cp "${container_id}:/tmp/${PLUGIN_SLUG}.${VERSION}.zip" "./${DIST_DIR}/${PLUGIN_SLUG}.${VERSION}.zip"
-	fi
-}
-
 # ------------------------------------------------------------------------------
-# Environment Detection
+# Archive
 # ------------------------------------------------------------------------------
 
-if [ "$CI" = "true" ] || [ "$ACT" = "true" ]; then
-	echo "🤖 CI Environment Detected"
-	wp dist-archive . "$DIST_DIR" --create-target-dir --format=zip --allow-root
+# wp dist-archive is the only thing the build needs from WP-CLI, and it does not
+# need a WordPress install to run -- it reads the plugin header and .distignore
+# straight from this directory. Pinned to the version CI installs so a local
+# archive and a released one are built by identical code.
+DIST_ARCHIVE_PACKAGE="wp-cli/dist-archive-command:v3.1.0"
 
-elif command -v wp &>/dev/null && wp core version &>/dev/null; then
-	echo "✅ Local WP-CLI Detected"
-	run_dist_archive "" "." "$DIST_DIR"
-
-else
-	echo "🐳 Docker Environment Detected"
-
-	# Ensure CLI is up
-	STARTED_CLI=0
-	if [ -z "$(docker compose ps -q cli 2>/dev/null)" ]; then
-		echo -e "${YELLOW}⚠️  CLI container not running. Starting...${NC}"
-		docker compose up cli -d
-		STARTED_CLI=1
-	fi
-
-	# Standard Docker Path for plugins
-	DOCKER_PLUGIN_PATH="/var/www/html/wp-content/plugins/${PLUGIN_SLUG}"
-
-	run_dist_archive "docker compose exec -T cli" "$DOCKER_PLUGIN_PATH" ""
+if ! command -v wp &>/dev/null; then
+	echo -e "${RED}❌ WP-CLI not found.${NC}"
+	echo "   Install it: https://wp-cli.org/#installing"
+	exit 1
 fi
+
+# --allow-root only when actually root (CI containers, act), since WP-CLI
+# refuses to run as root without it and warns about it when you are not.
+WP_FLAGS=()
+if [ "$(id -u)" = "0" ]; then
+	WP_FLAGS+=(--allow-root)
+fi
+
+if ! wp help dist-archive "${WP_FLAGS[@]}" &>/dev/null; then
+	echo -e "${YELLOW}⚠️  dist-archive not installed. Installing ${DIST_ARCHIVE_PACKAGE}...${NC}"
+	if ! wp package install "$DIST_ARCHIVE_PACKAGE" "${WP_FLAGS[@]}"; then
+		echo -e "${RED}❌ Could not install ${DIST_ARCHIVE_PACKAGE}.${NC}"
+		echo "   Install it manually: wp package install ${DIST_ARCHIVE_PACKAGE}"
+		exit 1
+	fi
+fi
+
+echo -e "${BLUE}🚀 Running dist-archive...${NC}"
+wp dist-archive . "$DIST_DIR" --create-target-dir --format=zip "${WP_FLAGS[@]}"
 
 # ==============================================================================
 # Verification
@@ -220,9 +199,15 @@ cd ../..
 echo -e "${GREEN}✅ Distribution extracted.${NC}"
 echo -e "📁 Files available in: ${YELLOW}${EXTRACTED_DIR}/${NC}"
 
-# If this script started the CLI container, remove it unless KEEP_CLI is set
-if [ "${STARTED_CLI:-0}" = "1" ] && [ "${KEEP_CLI:-0}" != "1" ]; then
-	echo -e "${BLUE}🧹 Bringing down compose stack started for the build...${NC}"
-	docker compose down cli --remove-orphans >/dev/null 2>&1 || true
-	docker compose down --remove-orphans >/dev/null 2>&1 || true
+# ==============================================================================
+# Restore Development Dependencies
+# ==============================================================================
+
+# vendor/ is tracked in this repo, so the --no-dev install above leaves every
+# dev dependency showing as deleted in git status until someone notices. CI
+# throws its checkout away and would only pay for the reinstall.
+if [ "$CI" != "true" ] && [ "$ACT" != "true" ]; then
+	echo -e "${BLUE}🔄 Restoring development dependencies...${NC}"
+	composer install --prefer-dist --quiet
+	echo -e "${GREEN}✅ Development dependencies restored.${NC}"
 fi
