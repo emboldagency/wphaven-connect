@@ -243,6 +243,16 @@ All methods:
 - Generate `dist/archives/wphaven-connect-<VERSION>.zip`
 - Respect `.distignore` file for excluding development files
 
+**Requirements:** [WP-CLI](https://wp-cli.org/#installing) on your PATH. Nothing
+else — no Docker, and no WordPress install, since `wp dist-archive` reads the
+plugin header and `.distignore` straight from this directory. The build installs
+the `dist-archive` command itself on first run, pinned to the same version CI
+uses so a local archive and a released one are built by identical code.
+
+Note that `vendor/` is tracked in this repo, so the build's `--no-dev` install
+temporarily strips your dev dependencies; the script reinstalls them when it
+finishes (skipped in CI, which throws its checkout away).
+
 ### Build Output Structure
 
 ```
