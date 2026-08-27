@@ -5,6 +5,7 @@
 .editorconfig
 .env
 .git
+.gitattributes
 .github
 .gitignore
 .gitmodules
@@ -29,6 +30,7 @@ phpstan.neon.dist
 phpunit.xml
 phpunit.xml.dist
 scripts
+CLAUDE.md
 README.md
 tests
 Thumbs.db
