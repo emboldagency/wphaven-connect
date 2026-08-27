@@ -4,9 +4,9 @@ on:
   push:
     tags:
       # Match a semver tag (with optional v prefix)
-      - "v?[0-9]+.[0-9]+.[0-9]"
+      - "v?[0-9]+.[0-9]+.[0-9]+"
       # Also match prerelease tags
-      - "v?[0-9]+.[0-9]+.[0-9]-*"
+      - "v?[0-9]+.[0-9]+.[0-9]+-*"
   workflow_dispatch:
 
 jobs:
@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # The release title comes from the annotated tag, which a shallow fetch skips.
+          fetch-depth: 0
 
       - name: Set up PHP with Composer
         uses: shivammathur/setup-php@v2
@@ -64,8 +67,32 @@ jobs:
             bash scripts/build.sh --dev
           fi
 
+      - name: Assemble release metadata
+        if: startsWith(github.ref, 'refs/tags/')
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+
+          # Lightweight tags have no subject; fall back to the tag name.
+          TITLE="$(git tag -l --format='%(contents:subject)' "$TAG")"
+          [ -n "$TITLE" ] || TITLE="$TAG"
+          { echo "title<<__EOF__"; echo "$TITLE"; echo "__EOF__"; } >> "$GITHUB_OUTPUT"
+
+          # Written to runner temp so it can't be swept into an archive build.
+          awk -v want="= $TAG =" '
+            $0 == want { found=1; next }
+            found && /^= [0-9]/ { exit }
+            found
+          ' readme.txt | sed '/^$/d' > "${RUNNER_TEMP}/notes.md"
+
+          echo "--- release notes ---"
+          cat "${RUNNER_TEMP}/notes.md"
+
       - name: Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          # Set at creation: the release webhook fires once, at publish.
+          name: ${{ steps.meta.outputs.title }}
+          body_path: ${{ runner.temp }}/notes.md
           files: dist/archives/*
