@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.34.0
+Stable tag: 0.34.1
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,13 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.34.1 =
+* Fix health error messages coming back empty. The sanitizing added for ModSecurity-fronted sites used a regular expression that failed to compile, blanking every error string it touched and logging a PHP warning each time. Paths and error signatures are scrubbed properly now, and URLs survive intact.
+* Require three consecutive failures before mail is marked unhealthy, and report `consecutive_failures` on the email signal. A single bounced address no longer reads as a broken mail transport. Invalid and empty recipient addresses never count, since those are bad form submissions rather than delivery problems.
+* Also mark mail unhealthy when two or more failures go an hour with no successful send in between. The consecutive count measures send attempts, not time, so a site sending a couple of mails a day would otherwise stay silent through a total outage.
+* Report disk and SSL warnings as "recommended" on the Site Health screen rather than "critical". Both degrade gradually, so neither is the emergency that red implies.
+* Widen the scheduled-post grace window from 15 to 30 minutes, so a post published slightly late by a busy cron run is not counted as missed.
 
 = 0.34.0 =
 * Fix: pulling a post that has never been transferred no longer fails outright when the target environment already has a matching item (same type + slug, or same post id) — the pull now adopts it and links the two, the same way a first push already did on its receiving end. Previously, only pushing could establish that first link, which meant content created directly in an environment that has no Push button (production) could never be pulled elsewhere.
