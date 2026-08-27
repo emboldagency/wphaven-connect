@@ -4,6 +4,7 @@ namespace WPHavenConnect\Providers;
 
 use WP_Error;
 use WPHavenConnect\ErrorHandler;
+use WPHavenConnect\Utilities\Environment;
 
 class ServiceProvider
 {
@@ -84,9 +85,9 @@ class ServiceProvider
             return true;
         }
 
-        // Debugging option.
-        // TODO: pending review before deploy -- this bypasses auth entirely.
-        if (isset($_GET['debug'])) {
+        // Debugging option, local work only. Environment defaults to production,
+        // so a site that never sets WP_ENVIRONMENT_TYPE keeps this closed.
+        if (isset($_GET['debug']) && Environment::is_development()) {
             return true;
         }
 

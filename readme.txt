@@ -16,6 +16,7 @@ Provides functionality to connect to the remote maintenance and management platf
 
 = 0.34.2 =
 * Fix sites reading as "Not reporting" when a security plugin (WP Force Login and similar) rejects every unauthenticated REST request. Our own routes are now let past that lock; each one still runs its own permission check.
+* The `?debug` query parameter, which skips the bearer token and IP allowlist on the health, server-info, php-info and Wordfence endpoints, now only applies on development environments. Staging and production ignore it, and a site that never sets `WP_ENVIRONMENT_TYPE` counts as production.
 
 = 0.34.1 =
 * Fix health error messages coming back empty. The sanitizing added for ModSecurity-fronted sites used a regular expression that failed to compile, blanking every error string it touched and logging a PHP warning each time. Paths and error signatures are scrubbed properly now, and URLs survive intact.
