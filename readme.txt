@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.34.1
+Stable tag: 0.34.2
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.34.2 =
+* Fix sites reading as "Not reporting" when a security plugin (WP Force Login and similar) rejects every unauthenticated REST request. Our own routes are now let past that lock; each one still runs its own permission check.
 
 = 0.34.1 =
 * Fix health error messages coming back empty. The sanitizing added for ModSecurity-fronted sites used a regular expression that failed to compile, blanking every error string it touched and logging a PHP warning each time. Paths and error signatures are scrubbed properly now, and URLs survive intact.
