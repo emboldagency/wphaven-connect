@@ -79,11 +79,19 @@ jobs:
           { echo "title<<__EOF__"; echo "$TITLE"; echo "__EOF__"; } >> "$GITHUB_OUTPUT"
 
           # Written to runner temp so it can't be swept into an archive build.
-          awk -v want="= $TAG =" '
-            $0 == want { found=1; next }
-            found && /^= [0-9]/ { exit }
-            found
-          ' readme.txt | sed '/^$/d' > "${RUNNER_TEMP}/notes.md"
+          notes_for() {
+            awk -v want="= $1 =" '
+              $0 == want { found=1; next }
+              found && /^= [0-9]/ { exit }
+              found
+            ' readme.txt | sed '/^$/d'
+          }
+          # A prerelease tag has no changelog heading of its own; fall back to
+          # the version it is a prerelease of.
+          notes_for "$TAG" > "${RUNNER_TEMP}/notes.md"
+          if [ ! -s "${RUNNER_TEMP}/notes.md" ]; then
+            notes_for "${TAG%%-*}" > "${RUNNER_TEMP}/notes.md"
+          fi
 
           echo "--- release notes ---"
           cat "${RUNNER_TEMP}/notes.md"
@@ -95,4 +103,7 @@ jobs:
           # Set at creation: the release webhook fires once, at publish.
           name: ${{ steps.meta.outputs.title }}
           body_path: ${{ runner.temp }}/notes.md
+          # Semver prereleases carry a hyphen. Marking them keeps them off
+          # "Latest" and out of the plugin updater, which skips prereleases.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: dist/archives/*
