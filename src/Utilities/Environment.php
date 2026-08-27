@@ -17,6 +17,11 @@ class Environment
     private static ?string $environment = null;
 
     /**
+     * @var bool Whether the cached environment was guessed rather than configured.
+     */
+    private static bool $inferred = false;
+
+    /**
      * Returns the current environment: 'development', 'staging', or 'production'.
      *
      * The result is cached after the first call for performance.
@@ -28,52 +33,71 @@ class Environment
             return self::$environment;
         }
 
-        $env = 'production'; // Default to production
+        $env = self::configured();
 
-        // Use WordPress standard methods first
-        if (function_exists('wp_get_environment_type')) {
-            $env = wp_get_environment_type();
-        } elseif (defined('WP_ENVIRONMENT_TYPE')) {
-            $env = WP_ENVIRONMENT_TYPE;
-        } elseif (defined('WP_ENV')) {
-            $env = WP_ENV;
-        }
-
-        // Normalize common aliases
-        switch ($env) {
-            case 'local':
-                $env = 'development';
-                break;
-            case 'maintenance':
-                $env = 'staging';
-                break;
-            default:
-                break;
-        }
-
-        // Fallback to host-based detection ONLY if the environment is not a valid final value.
-        // This allows overriding a 'production' default from constants with more specific host rules.
-        if (!in_array($env, self::ALLOWED_ENVS, true)) {
-            $host = self::get_host();
-            if (!empty($host)) {
-                // Development host patterns
-                if (self::host_matches($host, ['.local', 'localhost', '.embold.dev'])) {
-                    $env = 'development';
-                    // Staging host patterns
-                } elseif (self::host_matches($host, ['.net', 'staging.', '.wphaven.dev'])) {
-                    $env = 'staging';
-                }
-            }
-        }
-
-        // Final validation to ensure a valid type is returned
-        if (!in_array($env, self::ALLOWED_ENVS, true)) {
-            $env = 'production';
+        // Nothing configured: guess, and remember that we did.
+        if ($env === null) {
+            $env = self::infer_from_host();
+            self::$inferred = true;
         }
 
         // Cache and return the final environment
         self::$environment = $env;
         return self::$environment;
+    }
+
+    /**
+     * Whether the environment was guessed rather than configured.
+     */
+    public static function is_inferred(): bool
+    {
+        self::get_environment();
+
+        return self::$inferred;
+    }
+
+    /**
+     * The first valid WP_ENVIRONMENT_TYPE or legacy WP_ENV, as a constant or
+     * environment variable. Read directly: wp_get_environment_type() ignores
+     * WP_ENV and reports its own 'production' default like a real setting.
+     */
+    private static function configured(): ?string
+    {
+        foreach (['WP_ENVIRONMENT_TYPE', 'WP_ENV'] as $name) {
+            $value = defined($name) ? constant($name) : getenv($name);
+            $env = $value === 'local' ? 'development' : $value;
+
+            if (in_array($env, self::ALLOWED_ENVS, true)) {
+                return $env;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Best guess from the site's own home URL, defaulting to production.
+     * Deliberately narrow: a live site read as non-production exposes the
+     * transfer tooling. The request Host header is never used, since a
+     * catch-all vhost would let any client pick the environment.
+     */
+    private static function infer_from_host(): string
+    {
+        $host = self::get_host();
+
+        if ($host === '') {
+            return 'production';
+        }
+
+        if ($host === 'localhost' || self::ends_with_any($host, ['.local', '.localhost', '.embold.dev'])) {
+            return 'development';
+        }
+
+        if (str_starts_with($host, 'staging.') || self::ends_with_any($host, ['.embold.net', '.wphaven.dev'])) {
+            return 'staging';
+        }
+
+        return 'production';
     }
 
     /**
@@ -101,30 +125,30 @@ class Environment
     }
 
     /**
-     * Gets the request host name in a CLI-safe way.
+     * The home URL's host, available in CLI and cron as well as web requests.
      */
     private static function get_host(): string
     {
-        $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+        if (!function_exists('get_option')) {
+            return '';
+        }
+
+        $host = (string) wp_parse_url((string) get_option('home', ''), PHP_URL_HOST);
+
         return trim(strtolower($host));
     }
 
     /**
-     * Checks if a host string contains any of the provided patterns.
-     * Uses str_ends_with for suffixes starting with '.' for better accuracy.
+     * @param string[] $suffixes
      */
-    private static function host_matches(string $host, array $patterns): bool
+    private static function ends_with_any(string $host, array $suffixes): bool
     {
-        foreach ($patterns as $pattern) {
-            // Use str_ends_with for suffixes like '.local' to avoid matching 'local.com'
-            if ($pattern[0] === '.' && str_ends_with($host, $pattern)) {
-                return true;
-            }
-            // Use str_contains for prefixes or general substrings
-            if ($pattern[0] !== '.' && str_contains($host, $pattern)) {
+        foreach ($suffixes as $suffix) {
+            if (str_ends_with($host, $suffix)) {
                 return true;
             }
         }
+
         return false;
     }
 }

@@ -127,7 +127,7 @@ class EnvironmentIndicatorAdminBarBadgeProvider
             ],
         ];
 
-        if ($key == 'default') {
+        if (Environment::is_inferred()) {
             $args['meta']['title'] = "WP_ENVIRONMENT_TYPE is not set. This is the inferred value, but you should set it explicitly in wp_config.php";
         }
 
