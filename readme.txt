@@ -14,6 +14,9 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.34.3 =
+* Internal: Upgraded deployment pipeline to generate checksum-compliant release zips.
+
 = 0.34.2 =
 * Fix sites reading as "Not reporting" when a security plugin (WP Force Login and similar) rejects every unauthenticated REST request. Our own routes are now let past that lock; each one still runs its own permission check.
 * The `?debug` query parameter, which skips the bearer token and IP allowlist on the health, server-info, php-info and Wordfence endpoints, now only applies on development environments. Staging and production ignore it, and a site that never sets `WP_ENVIRONMENT_TYPE` counts as production.
