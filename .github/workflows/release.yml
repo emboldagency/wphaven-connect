@@ -3,107 +3,13 @@ name: WordPress Plugin Release
 on:
   push:
     tags:
-      # Match a semver tag (with optional v prefix)
       - "v?[0-9]+.[0-9]+.[0-9]+"
-      # Also match prerelease tags
       - "v?[0-9]+.[0-9]+.[0-9]+-*"
   workflow_dispatch:
 
 jobs:
   dist:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          # The release title comes from the annotated tag, which a shallow fetch skips.
-          fetch-depth: 0
-
-      - name: Set up PHP with Composer
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer
-          # Disable Composer's github-oauth. setup-php otherwise writes the
-          # Actions token (github.token, a ghs_ token) into Composer's global
-          # config, which Composer 2.10 rejects as "invalid characters",
-          # breaking both `composer install` and `wp package install`. Our
-          # packages are public, so no auth is needed.
-          github-token: ''
-
-      - name: Set up WP-CLI
-        run: |
-          curl -fsSL -o wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-          chmod +x wp-cli.phar
-          sudo mv wp-cli.phar /usr/local/bin/wp
-          wp --info
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-
-
-      - name: Make build script executable
-        run: chmod +x scripts/build.sh
-
-      - name: Install dist-archive command
-        run: wp package install wp-cli/dist-archive-command:v3.1.0 --allow-root
-
-      - name: Build distribution archive
-        env:
-          GIT_TAG: ${{ github.ref_name }}
-        run: |
-          # --fix rewrites file versions to match the release tag, so it only
-          # makes sense on a tag push (github.ref_name is a clean semver there).
-          # On branch/manual runs the ref may contain a "/", which breaks the
-          # version sed, so build without rewriting versions instead.
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            bash scripts/build.sh --fix
-          else
-            bash scripts/build.sh --dev
-          fi
-
-      - name: Assemble release metadata
-        if: startsWith(github.ref, 'refs/tags/')
-        id: meta
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-
-          # Lightweight tags have no subject; fall back to the tag name.
-          TITLE="$(git tag -l --format='%(contents:subject)' "$TAG")"
-          [ -n "$TITLE" ] || TITLE="$TAG"
-          { echo "title<<__EOF__"; echo "$TITLE"; echo "__EOF__"; } >> "$GITHUB_OUTPUT"
-
-          # Written to runner temp so it can't be swept into an archive build.
-          notes_for() {
-            awk -v want="= $1 =" '
-              $0 == want { found=1; next }
-              found && /^= [0-9]/ { exit }
-              found
-            ' readme.txt | sed '/^$/d'
-          }
-          # A prerelease tag has no changelog heading of its own; fall back to
-          # the version it is a prerelease of.
-          notes_for "$TAG" > "${RUNNER_TEMP}/notes.md"
-          if [ ! -s "${RUNNER_TEMP}/notes.md" ]; then
-            notes_for "${TAG%%-*}" > "${RUNNER_TEMP}/notes.md"
-          fi
-
-          echo "--- release notes ---"
-          cat "${RUNNER_TEMP}/notes.md"
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          # Set at creation: the release webhook fires once, at publish.
-          name: ${{ steps.meta.outputs.title }}
-          body_path: ${{ runner.temp }}/notes.md
-          # Semver prereleases carry a hyphen. Marking them keeps them off
-          # "Latest" and out of the plugin updater, which skips prereleases.
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          files: dist/archives/*
+    uses: emboldagency/.github/.github/workflows/wp-release.yml@master
+    with:
+      plugin_slug: 'wphaven-connect'
+      main_file: 'wphaven-connect.php'

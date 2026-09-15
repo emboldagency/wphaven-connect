@@ -104,25 +104,20 @@ To override this behavior:
   });
   ```
 
-## Installation through git
+## Installation via Git Clone
 
-From the wp-content/plugins directory:
+If installing directly via `git clone` (instead of using the release ZIP), you must clean up development files after cloning so WP Haven can verify checksums.
+
+From the `wp-content/plugins` directory:
 
 ```bash
-git clone git@github.com:emboldagency/wphaven-connect.git && \
-cd wphaven-connect && \
-bash scripts/clean-dist.sh --yes && \
+git clone git@github.com:emboldagency/wphaven-connect.git
+cd wphaven-connect
+bash bin/clean-dist.sh --yes
 wp plugin activate wphaven-connect
 ```
 
-`scripts/clean-dist.sh` strips the dev-only files listed in `.distignore` (including `.git`
-itself) so the installed copy matches what the release ZIP would have contained. As a safety
-check, it refuses to run against a git working tree that has uncommitted changes or unpushed
-commits — that's the signature of an active development checkout, not a fresh site install —
-so it won't accidentally wipe out `.git` in a repo you're actively working in. Run it with no
-arguments first to preview what would be removed; pass `--force` to bypass that check if you
-really mean to clean a dev checkout.
-
+**Note**: `bin/clean-dist.sh` strips all dev-only files (including `.git`) listed in `.distignore`. As a safeguard, it refuses to run if it detects uncommitted or unpushed changes. Run without arguments for a dry-run preview, or add `--force` to explicitly override the safeguard.
 ## Development Setup
 
 This project uses Docker Compose for local development.
