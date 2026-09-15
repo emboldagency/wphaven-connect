@@ -14,6 +14,9 @@ Provides functionality to connect to the remote maintenance and management platf
 
 == Changelog ==
 
+= 0.34.4 =
+* Version bump to fix WP version comparison downgrade warning
+
 = 0.34.3 =
 * Internal: Upgraded deployment pipeline to generate checksum-compliant release zips.
 
