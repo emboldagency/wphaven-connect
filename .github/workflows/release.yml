@@ -12,4 +12,4 @@ jobs:
     uses: emboldagency/.github/.github/workflows/wp-release.yml@master
     with:
       plugin_slug: 'wphaven-connect'
-      main_file: 'wphaven-connect.php'
+      main_file: 'wphaven.php'
