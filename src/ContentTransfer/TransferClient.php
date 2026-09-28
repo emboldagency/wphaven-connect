@@ -66,7 +66,7 @@ class TransferClient
      * Push an envelope to the remote import route.
      *
      * @param array<string, mixed> $envelope
-     * @param array{publish?: bool, overwrite_conflict?: bool} $args
+     * @param array{publish?: bool, overwrite_conflict?: bool, relink?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
     public function push(array $envelope, array $args = [])
@@ -75,6 +75,7 @@ class TransferClient
             'envelope'           => $envelope,
             'publish'            => ! empty($args['publish']),
             'overwrite_conflict' => ! empty($args['overwrite_conflict']),
+            'relink'             => ! empty($args['relink']),
         ]);
     }
 
@@ -91,29 +92,54 @@ class TransferClient
 
     /**
      * Fetch an envelope for a piece of content from the remote export route.
+     * With $preview the remote won't mint a content id for an unlinked post.
      *
      * @return array<string, mixed>|WP_Error
      */
-    public function fetchExport(string $content_id)
+    public function fetchExport(string $content_id, bool $preview = false)
     {
-        return $this->request('/content/export', ['content_id' => $content_id]);
+        return $this->request('/content/export', ['content_id' => $content_id, 'preview' => $preview]);
     }
 
     /**
-     * Ask the remote for content that is "clearly the same" as an unlinked local
-     * post (same type + slug, or same post id) and fetch its export envelope.
-     * Bootstraps a link when a pull is attempted before either side has ever
-     * been transferred.
+     * Fetch an envelope for a remote post addressed by its remote post ID (a
+     * "sync new" row that has never been linked, so carries no content id).
      *
      * @return array<string, mixed>|WP_Error
      */
-    public function matchExport(string $post_type, string $slug, int $candidate_post_id)
+    public function fetchExportByPostId(int $remote_post_id, bool $preview = false)
+    {
+        return $this->request('/content/export', ['local_post_id' => $remote_post_id, 'preview' => $preview]);
+    }
+
+    /**
+     * Ask the remote for content that is "clearly the same" as a local post
+     * (same type + slug, or same post id) and fetch its export envelope.
+     * Bootstraps a link when a pull is attempted before either side has ever
+     * been transferred -- or, with $allow_linked, repairs one where the remote
+     * copy is already linked under a different content id.
+     *
+     * @return array<string, mixed>|WP_Error
+     */
+    public function matchExport(string $post_type, string $slug, int $candidate_post_id, bool $preview = false, bool $allow_linked = false)
     {
         return $this->request('/content/match', [
             'post_type'         => $post_type,
             'slug'              => $slug,
             'candidate_post_id' => $candidate_post_id,
+            'preview'           => $preview,
+            'allow_linked'      => $allow_linked,
         ]);
+    }
+
+    /**
+     * The error code the remote plugin returned, if a request failed there.
+     */
+    public static function remoteErrorCode(WP_Error $error): string
+    {
+        $data = $error->get_error_data();
+
+        return is_array($data) && isset($data['body']['code']) ? (string) $data['body']['code'] : $error->get_error_code();
     }
 
     /**

@@ -113,7 +113,7 @@
           done++;
           if (res && res.success) {
             ok++;
-          } else if (res && res.data && (res.data.code === "wphaven_transfer_conflict" || res.data.code === "wphaven_no_link")) {
+          } else if (res && res.data && (res.data.code === "wphaven_transfer_conflict" || res.data.code === "wphaven_no_link" || res.data.code === "wphaven_link_drift")) {
             skipped++;
           } else {
             failed++;
@@ -133,13 +133,20 @@
 
   // --- Sync new: find content on the target this site doesn't have yet -----
 
-  function pullNew(contentId, overwriteConflict, preview) {
+  /**
+   * Rows the target has never linked carry no content id and are addressed by
+   * their post ID there. Rows that match a local post linked under a different
+   * content id (relink_id) are re-linked rather than duplicated.
+   */
+  function pullNew(item, overwriteConflict, preview) {
     var body = new FormData();
     body.append("action", cfg.action);
     body.append("nonce", cfg.nonce);
     body.append("direction", "pull");
     body.append("target", targetSelect.value);
-    body.append("content_id", contentId);
+    body.append("content_id", item.content_id || "");
+    body.append("source_post_id", item.source_post_id || 0);
+    body.append("relink", item.relink_id ? 1 : 0);
     body.append("post_type", cfg.postType);
     body.append("preview", preview ? 1 : 0);
     body.append("overwrite_conflict", overwriteConflict ? 1 : 0);
@@ -149,14 +156,16 @@
   }
 
   /** Link-only: stamp the content id onto an already-matched local post without touching its content. */
-  function linkOne(postId, contentId) {
+  function linkOne(item) {
     var body = new FormData();
     body.append("action", cfg.action);
     body.append("nonce", cfg.nonce);
     body.append("direction", "link");
     body.append("target", targetSelect.value);
-    body.append("post_id", postId);
-    body.append("content_id", contentId);
+    body.append("post_id", item.adopt_id || item.relink_id);
+    body.append("content_id", item.content_id || "");
+    body.append("source_post_id", item.source_post_id || 0);
+    body.append("relink", item.relink_id ? 1 : 0);
     return fetch(cfg.ajaxUrl, { method: "POST", credentials: "same-origin", body: body }).then(function (r) {
       return r.json();
     });
@@ -205,7 +214,7 @@
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = true;
-      cb.value = item.content_id;
+      cb.value = item.content_id || "post:" + item.source_post_id;
       cb._item = item;
       rowCbs.push(cb);
       line.appendChild(cb);
@@ -215,7 +224,11 @@
       var statusSpan = document.createElement("span");
       statusSpan.className = "description";
       statusSpan.style.cssText = "display:block;padding-left:22px;font-size:12px;";
-      statusSpan.textContent = item.adopt_id ? fmt(i18n.willAdopt, item.adopt_id) : i18n.willCreate;
+      statusSpan.textContent = item.adopt_id
+        ? fmt(i18n.willAdopt, item.adopt_id)
+        : item.relink_id
+          ? fmt(i18n.willRelink, item.relink_id)
+          : i18n.willCreate;
       cb._statusEl = statusSpan;
       row.appendChild(statusSpan);
 
@@ -244,7 +257,7 @@
         return cb.checked && !cb.disabled;
       });
       var linkable = checked.filter(function (cb) {
-        return cb._item.adopt_id;
+        return cb._item.adopt_id || cb._item.relink_id;
       });
       pullBtnModal.textContent = fmt(i18n.pullSelected, checked.length);
       pullBtnModal.disabled = !checked.length;
@@ -281,13 +294,13 @@
     // batch. Rows that would only create a new draft carry no such risk.
     var previewChain = Promise.resolve();
     rowCbs.forEach(function (cb) {
-      if (!cb._item.adopt_id) {
+      if (!cb._item.adopt_id && !cb._item.relink_id) {
         return;
       }
       cb._statusEl.textContent = i18n.checking;
       previewChain = previewChain
         .then(function () {
-          return pullNew(cb.value, false, true);
+          return pullNew(cb._item, false, true);
         })
         .then(function (res) {
           if (!res || !res.success) {
@@ -304,7 +317,9 @@
             cb.checked = false;
             cb._statusEl.textContent = i18n.conflictWarn;
           } else {
-            cb._statusEl.textContent = fmt(i18n.willUpdate, (diff.changed_meta || []).length);
+            cb._statusEl.textContent =
+              (diff.relink ? fmt(i18n.willRelink, diff.target_id) + " — " : "") +
+              fmt(i18n.willUpdate, (diff.changed_meta || []).length);
           }
           updateButtonLabels();
         })
@@ -368,7 +383,7 @@
 
     linkBtnModal.addEventListener("click", function () {
       var selected = rowCbs.filter(function (cb) {
-        return cb.checked && !cb.disabled && cb._item.adopt_id;
+        return cb.checked && !cb.disabled && (cb._item.adopt_id || cb._item.relink_id);
       });
       if (!selected.length) {
         return;
@@ -379,7 +394,7 @@
         i18n.linkingRow,
         function (cb) {
           cb._statusEl.textContent = i18n.linkingRowStatus;
-          return linkOne(cb._item.adopt_id, cb.value);
+          return linkOne(cb._item);
         },
         function (cb, res) {
           if (res && res.success) {
@@ -406,7 +421,7 @@
         i18n.pullingNew,
         function (cb) {
           cb._statusEl.textContent = i18n.pullingRow;
-          return pullNew(cb.value, !!cb._item.conflict, false);
+          return pullNew(cb._item, !!cb._item.conflict, false);
         },
         function (cb, res) {
           if (res && res.success) {

@@ -48,6 +48,15 @@
     var lines = [];
     if (diff.is_new) {
       lines.push("Creates a new " + (direction === "pull" ? "local" : "remote") + " item (as a draft).");
+    } else if (diff.relink) {
+      lines.push(
+        "Re-links and updates existing item #" +
+          (diff.target_id || "?") +
+          ". It was linked under a different content id, so without this it would have been duplicated."
+      );
+      if (diff.changed_meta && diff.changed_meta.length) {
+        lines.push(diff.changed_meta.length + " custom field(s) will change.");
+      }
     } else {
       lines.push("Updates an existing item (#" + (diff.target_id || "?") + ").");
       if (diff.changed_meta && diff.changed_meta.length) {
@@ -97,6 +106,10 @@
 
     report(i18n.working);
 
+    // Set from the preview: the confirm dialog tells the user an existing,
+    // drifted item will be re-linked, so the commit carries that consent.
+    var relink = false;
+
     request({ direction: direction, post_id: postId, target: target, preview: 1 })
       .then(function (res) {
         if (!res || !res.success) {
@@ -107,6 +120,7 @@
         var intro = fmt(direction === "pull" ? i18n.confirmPull : i18n.confirmSend, targetName);
         var message = intro + "\n\n" + summarize(diff, direction);
         var overwriteConflict = false;
+        relink = !!diff.relink;
 
         if (diff.conflict) {
           message += "\n\n⚠ " + i18n.conflict;
@@ -125,6 +139,7 @@
           target: target,
           preview: 0,
           overwrite_conflict: overwriteConflict ? 1 : 0,
+          relink: relink ? 1 : 0,
         });
       })
       .then(function (res) {
@@ -143,6 +158,7 @@
                 target: target,
                 preview: 0,
                 overwrite_conflict: 1,
+                relink: relink ? 1 : 0,
               }).then(function (r) {
                 if (r && r.success) {
                   onSuccess(direction, report);

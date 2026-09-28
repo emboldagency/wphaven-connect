@@ -45,16 +45,22 @@ class ContentSerializer
     /**
      * Build the envelope for a post.
      *
+     * Pass $persist_id = false for dry runs: an unlinked post then gets a
+     * throwaway content id instead of minting one, so a preview (or a cancelled
+     * transfer) can't leave this side holding an id the other side never saw.
+     *
      * @return array<string, mixed>|WP_Error
      */
-    public function export(int $post_id)
+    public function export(int $post_id, bool $persist_id = true)
     {
         $post = get_post($post_id);
         if (! $post instanceof WP_Post) {
             return new WP_Error('wphaven_export_missing', __('Post not found.', 'wphaven-connect'), ['status' => 404]);
         }
 
-        $content_id = ContentIdentity::ensure($post_id);
+        $content_id = $persist_id
+            ? ContentIdentity::ensure($post_id)
+            : (ContentIdentity::get($post_id) ?? wp_generate_uuid4());
 
         $payload = [
             'envelope_version'    => self::ENVELOPE_VERSION,

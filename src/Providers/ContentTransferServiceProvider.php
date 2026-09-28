@@ -126,7 +126,7 @@ class ContentTransferServiceProvider
             return new WP_Error('wphaven_export_not_found', __('No matching content on this site.', 'wphaven-connect'), ['status' => 404]);
         }
 
-        $envelope = (new ContentSerializer())->export($post_id);
+        $envelope = (new ContentSerializer())->export($post_id, ! $request->get_param('preview'));
         if (is_wp_error($envelope)) {
             return $envelope;
         }
@@ -169,6 +169,7 @@ class ContentTransferServiceProvider
         $result = (new ContentImporter())->import($envelope, [
             'publish'            => (bool) $request->get_param('publish'),
             'overwrite_conflict' => (bool) $request->get_param('overwrite_conflict'),
+            'relink'             => (bool) $request->get_param('relink'),
         ]);
         if (is_wp_error($result)) {
             return $result;
@@ -182,7 +183,9 @@ class ContentTransferServiceProvider
      * not-yet-linked post elsewhere (same type + slug, or same post id), and
      * return its export envelope. Used to bootstrap a link in either direction
      * when neither side has a content id yet -- the reverse of the adoption
-     * `ContentImporter::resolveTarget()` already does on import.
+     * `ContentImporter::resolveTarget()` already does on import. With
+     * `allow_linked`, also matches a post already linked under another content
+     * id, so a drifted pair can be repaired (the importer then asks to re-link).
      *
      * @return WP_REST_Response|WP_Error
      */
@@ -197,11 +200,14 @@ class ContentTransferServiceProvider
         }
 
         $post_id = ContentIdentity::findAdoptable($post_type, $slug, $candidate);
+        if ($post_id === null && $request->get_param('allow_linked')) {
+            $post_id = ContentIdentity::findDrifted($post_type, $slug, $candidate);
+        }
         if ($post_id === null) {
             return new WP_Error('wphaven_no_match', __('No matching content on this site.', 'wphaven-connect'), ['status' => 404]);
         }
 
-        $envelope = (new ContentSerializer())->export($post_id);
+        $envelope = (new ContentSerializer())->export($post_id, ! $request->get_param('preview'));
         if (is_wp_error($envelope)) {
             return $envelope;
         }
@@ -212,9 +218,10 @@ class ContentTransferServiceProvider
     /**
      * REST: list this site's posts of a given type (id, slug, title, status,
      * modified date, content id) so a peer can diff them against what it already
-     * has and offer to pull the ones it's missing. Read-only except for minting a
-     * content id per row -- the same eager `ensure()` that export()/preview()
-     * already do -- so a subsequent pull-by-content-id can address the row.
+     * has and offer to pull the ones it's missing. Strictly read-only: unlinked
+     * rows report a null content id and are addressed by `source_post_id`.
+     * (Minting ids here used to seed link drift: every listed post got an id
+     * the peer never saw, so a later push from the peer duplicated it.)
      *
      * @return WP_REST_Response|WP_Error
      */
@@ -242,7 +249,7 @@ class ContentTransferServiceProvider
         $items = [];
         foreach ($query->posts as $post) {
             $items[] = [
-                'content_id'     => ContentIdentity::ensure((int) $post->ID),
+                'content_id'     => ContentIdentity::get((int) $post->ID),
                 'source_post_id' => (int) $post->ID,
                 'post_type'      => $post->post_type,
                 'title'          => get_the_title($post),
@@ -267,23 +274,29 @@ class ContentTransferServiceProvider
      * post type's edit capability rather than a specific post. A third direction,
      * "link", writes the content id onto an existing local post without pulling
      * or changing anything about it (see doLinkOnly()).
+     *
+     * A scan row that has never been linked has no content id; it is addressed
+     * by `source_post_id` (its post ID on the target) instead. `relink` confirms
+     * re-keying a local post that is linked under a different content id.
      */
     public function handleAjax(): void
     {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
 
-        $post_id    = (int) ($_POST['post_id'] ?? 0);
-        $content_id = sanitize_text_field((string) ($_POST['content_id'] ?? ''));
-        $post_type  = sanitize_key((string) ($_POST['post_type'] ?? ''));
-        $direction  = sanitize_key($_POST['direction'] ?? '');
-        $target     = Environments::cleanLabel($_POST['target'] ?? '');
-        $preview    = ! empty($_POST['preview']);
-        $args       = [
+        $post_id        = (int) ($_POST['post_id'] ?? 0);
+        $content_id     = sanitize_text_field((string) ($_POST['content_id'] ?? ''));
+        $source_post_id = (int) ($_POST['source_post_id'] ?? 0);
+        $post_type      = sanitize_key((string) ($_POST['post_type'] ?? ''));
+        $direction      = sanitize_key($_POST['direction'] ?? '');
+        $target         = Environments::cleanLabel($_POST['target'] ?? '');
+        $preview        = ! empty($_POST['preview']);
+        $args           = [
             'publish'            => ! empty($_POST['publish']),
             'overwrite_conflict' => ! empty($_POST['overwrite_conflict']),
+            'relink'             => ! empty($_POST['relink']),
         ];
 
-        $pulling_new = ! $post_id && $direction === 'pull' && $content_id !== '';
+        $pulling_new = ! $post_id && $direction === 'pull' && ($content_id !== '' || $source_post_id > 0);
 
         if ($pulling_new) {
             if (! $this->isTransferablePostType($post_type) || ! TransferPermissions::canEditPostType($post_type)) {
@@ -309,11 +322,11 @@ class ContentTransferServiceProvider
         }
 
         if ($pulling_new) {
-            $result = $this->doPullNew($content_id, $target, $preview, $args);
+            $result = $this->doPullNew($content_id, $source_post_id, $target, $preview, $args);
         } elseif ($direction === 'pull') {
             $result = $this->doPull($post_id, $target, $preview, $args);
         } elseif ($direction === 'link') {
-            $result = $this->doLinkOnly($post_id, $content_id);
+            $result = $this->doLinkOnly($post_id, $content_id, $source_post_id, $target, $args['relink']);
         } else {
             $result = $this->doPush($post_id, $target, $preview, $args);
         }
@@ -321,7 +334,9 @@ class ContentTransferServiceProvider
         if (is_wp_error($result)) {
             wp_send_json_error([
                 'message' => $result->get_error_message(),
-                'code'    => $result->get_error_code(),
+                // Surface the remote's own code (e.g. a conflict or link drift
+                // raised by the receiving site on push) so the UI can react.
+                'code'    => TransferClient::remoteErrorCode($result),
                 'data'    => $result->get_error_data(),
             ], 200);
         }
@@ -373,22 +388,36 @@ class ContentTransferServiceProvider
             foreach ($items as $item) {
                 $scanned++;
 
-                $local = ContentIdentity::findLocalPost((string) ($item['content_id'] ?? ''));
-                if (is_wp_error($local) || $local !== null) {
-                    continue; // Already linked locally, or ambiguous -- resolve on the post itself.
+                // Null for a row the target has never linked (it no longer
+                // mints ids just for being listed).
+                $content_id = (string) ($item['content_id'] ?? '');
+
+                if ($content_id !== '') {
+                    $local = ContentIdentity::findLocalPost($content_id);
+                    if (is_wp_error($local) || $local !== null) {
+                        continue; // Already linked locally, or ambiguous -- resolve on the post itself.
+                    }
                 }
 
+                $item_type      = (string) ($item['post_type'] ?? $post_type);
+                $slug           = (string) ($item['slug'] ?? '');
+                $source_post_id = (int) ($item['source_post_id'] ?? 0);
+
+                $adopt_id  = ContentIdentity::findAdoptable($item_type, $slug, $source_post_id);
+                $relink_id = $adopt_id === null ? ContentIdentity::findDrifted($item_type, $slug, $source_post_id) : null;
+
                 $new_items[] = [
-                    'content_id'   => $item['content_id'] ?? '',
-                    'title'        => $item['title'] ?? '',
-                    'slug'         => $item['slug'] ?? '',
-                    'status'       => $item['status'] ?? '',
-                    'modified_gmt' => $item['modified_gmt'] ?? '',
-                    'adopt_id'     => ContentIdentity::findAdoptable(
-                        (string) ($item['post_type'] ?? $post_type),
-                        (string) ($item['slug'] ?? ''),
-                        (int) ($item['source_post_id'] ?? 0)
-                    ),
+                    'content_id'     => $content_id,
+                    'source_post_id' => $source_post_id,
+                    'title'          => $item['title'] ?? '',
+                    'slug'           => $slug,
+                    'status'         => $item['status'] ?? '',
+                    'modified_gmt'   => $item['modified_gmt'] ?? '',
+                    'adopt_id'       => $adopt_id,
+                    // Same post, but linked here under a different content id:
+                    // linking/pulling it re-keys the local post instead of
+                    // creating a duplicate.
+                    'relink_id'      => $relink_id,
                 ];
             }
 
@@ -403,12 +432,14 @@ class ContentTransferServiceProvider
     }
 
     /**
-     * @param array{publish?: bool, overwrite_conflict?: bool} $args
+     * @param array{publish?: bool, overwrite_conflict?: bool, relink?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
     private function doPush(int $post_id, string $target, bool $preview, array $args)
     {
-        $envelope = (new ContentSerializer())->export($post_id);
+        // A preview must not mint: if the user cancels, this side would hold a
+        // content id the target never saw.
+        $envelope = (new ContentSerializer())->export($post_id, ! $preview);
         if (is_wp_error($envelope)) {
             return $envelope;
         }
@@ -419,38 +450,45 @@ class ContentTransferServiceProvider
     }
 
     /**
-     * @param array{publish?: bool, overwrite_conflict?: bool} $args
+     * @param array{publish?: bool, overwrite_conflict?: bool, relink?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
     private function doPull(int $post_id, string $target, bool $preview, array $args)
     {
         $content_id = ContentIdentity::get($post_id);
+        $client     = TransferClient::forLabel($target);
+        $post       = get_post($post_id);
+        $post_type  = $post instanceof WP_Post ? $post->post_type : '';
+        $slug       = $post instanceof WP_Post ? $post->post_name : '';
 
         if ($content_id !== null) {
-            $envelope = TransferClient::forLabel($target)->fetchExport($content_id);
+            $envelope = $client->fetchExport($content_id, $preview);
+
+            // Linked here, but the target doesn't know this content id: the
+            // pair has drifted (each side minted its own). Fall back to finding
+            // the same post there; the importer then asks to re-link.
+            if (is_wp_error($envelope) && TransferClient::remoteErrorCode($envelope) === 'wphaven_export_not_found') {
+                $envelope = $client->matchExport($post_type, $slug, $post_id, $preview, true);
+            }
         } else {
             // Never linked locally -- before giving up, ask the target whether
             // it has something "clearly the same" (matching type + slug, or
             // matching post id) that this pull can adopt, same as a push would
             // on its receiving end. Covers content created directly on the
-            // target (e.g. production) with no push ever having run.
-            $post     = get_post($post_id);
-            $envelope = TransferClient::forLabel($target)->matchExport(
-                $post instanceof WP_Post ? $post->post_type : '',
-                $post instanceof WP_Post ? $post->post_name : '',
-                $post_id
-            );
+            // target (e.g. production) with no push ever having run, including
+            // content the target has already linked elsewhere.
+            $envelope = $client->matchExport($post_type, $slug, $post_id, $preview, true);
+        }
 
-            if (is_wp_error($envelope) && $envelope->get_error_code() === 'wphaven_no_match') {
-                return new WP_Error(
-                    'wphaven_no_link',
-                    sprintf(
-                        /* translators: %s: environment label */
-                        __('This post has never been transferred, and no matching content was found on "%s" to link it to.', 'wphaven-connect'),
-                        $target
-                    )
-                );
-            }
+        if (is_wp_error($envelope) && TransferClient::remoteErrorCode($envelope) === 'wphaven_no_match') {
+            return new WP_Error(
+                'wphaven_no_link',
+                sprintf(
+                    /* translators: %s: environment label */
+                    __('No matching content was found on "%s" to link this post to.', 'wphaven-connect'),
+                    $target
+                )
+            );
         }
 
         if (is_wp_error($envelope)) {
@@ -464,14 +502,18 @@ class ContentTransferServiceProvider
 
     /**
      * Pull content that doesn't exist locally at all yet, addressed by a
-     * content id obtained from a "sync new" scan rather than a local post.
+     * content id obtained from a "sync new" scan rather than a local post --
+     * or, for a row the target has never linked, by its post ID there.
      *
-     * @param array{publish?: bool, overwrite_conflict?: bool} $args
+     * @param array{publish?: bool, overwrite_conflict?: bool, relink?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
-    private function doPullNew(string $content_id, string $target, bool $preview, array $args)
+    private function doPullNew(string $content_id, int $source_post_id, string $target, bool $preview, array $args)
     {
-        $envelope = TransferClient::forLabel($target)->fetchExport($content_id);
+        $client   = TransferClient::forLabel($target);
+        $envelope = $content_id !== ''
+            ? $client->fetchExport($content_id, $preview)
+            : $client->fetchExportByPostId($source_post_id, $preview);
         if (is_wp_error($envelope)) {
             return $envelope;
         }
@@ -485,19 +527,38 @@ class ContentTransferServiceProvider
      * Write a content id onto a local post without importing anything -- for
      * reconciling environments that already carry matching content built
      * outside of a transfer (a database clone, a separate migration), so
-     * push/pull can address it going forward without ever overwriting it. The
-     * content id is already minted on the remote by the time this runs (the
-     * "sync new" scan ensures it), so this is a pure local write.
+     * push/pull can address it going forward without ever overwriting it.
+     *
+     * When the target row has no content id yet, one is minted there by
+     * fetching its export (a real, non-preview export mints), then copied here.
+     * With $relink, a local post already linked under a different id is
+     * re-keyed -- the fix for a drifted pair.
      *
      * @return array<string, mixed>|WP_Error
      */
-    private function doLinkOnly(int $post_id, string $content_id)
+    private function doLinkOnly(int $post_id, string $content_id, int $source_post_id, string $target, bool $relink)
     {
+        if ($content_id === '' && $source_post_id > 0) {
+            $envelope = TransferClient::forLabel($target)->fetchExportByPostId($source_post_id);
+            if (is_wp_error($envelope)) {
+                return $envelope;
+            }
+            if (($envelope['post']['post_type'] ?? '') !== get_post_type($post_id)) {
+                return new WP_Error('wphaven_link_type_mismatch', __('The remote content is a different post type-- refusing to link.', 'wphaven-connect'), ['status' => 409]);
+            }
+            $content_id = (string) ($envelope['content_id'] ?? '');
+        }
+
         if ($content_id === '') {
             return new WP_Error('wphaven_link_missing_content_id', __('No content id provided.', 'wphaven-connect'), ['status' => 400]);
         }
 
-        if (ContentIdentity::get($post_id) !== null) {
+        $current = ContentIdentity::get($post_id);
+        if ($current === $content_id) {
+            return ['post_id' => $post_id, 'linked' => true];
+        }
+
+        if ($current !== null && ! $relink) {
             return new WP_Error(
                 'wphaven_already_linked',
                 __('This post is already linked to something else -- resolve that link before linking it here.', 'wphaven-connect'),
@@ -505,9 +566,26 @@ class ContentTransferServiceProvider
             );
         }
 
+        // Never let two local posts share an id.
+        $holder = ContentIdentity::findLocalPost($content_id);
+        if (is_wp_error($holder)) {
+            return $holder;
+        }
+        if ($holder !== null) {
+            return new WP_Error(
+                'wphaven_content_id_taken',
+                sprintf(
+                    /* translators: %d: local post id */
+                    __('That content is already linked to local post #%d.', 'wphaven-connect'),
+                    $holder
+                ),
+                ['status' => 409]
+            );
+        }
+
         ContentIdentity::assign($post_id, $content_id);
 
-        return ['post_id' => $post_id, 'linked' => true];
+        return ['post_id' => $post_id, 'linked' => true, 'relinked_from' => $current];
     }
 
     public function enqueueBlockEditorAssets(): void

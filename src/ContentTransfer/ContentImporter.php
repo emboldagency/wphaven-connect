@@ -16,7 +16,9 @@ use WPHavenConnect\Utilities\Environment;
  *    explicit publish flag is passed;
  *  - the target's meta and terms are snapshotted before being overwritten;
  *  - a conflict (target modified more recently than the incoming version) aborts
- *    unless the caller confirms the overwrite (the editor previews first).
+ *    unless the caller confirms the overwrite (the editor previews first);
+ *  - a matching post linked under a different content id aborts unless the
+ *    caller confirms re-linking, rather than creating a duplicate.
  */
 class ContentImporter
 {
@@ -47,6 +49,11 @@ class ContentImporter
             return $target;
         }
 
+        $drift = $target === null ? $this->findDriftTarget($envelope) : null;
+        if ($drift !== null) {
+            $target = $drift;
+        }
+
         $is_new  = $target === null;
         $post_in = $envelope['post'];
 
@@ -69,6 +76,8 @@ class ContentImporter
             'changed_meta'  => $changed_meta,
             'terms'         => array_map(static fn ($t) => $t['taxonomy'] . ':' . $t['slug'], (array) $envelope['terms']),
             'media_count'   => count((array) $envelope['media_manifest']),
+            'relink'        => $drift !== null,
+            'relink_from'   => $drift !== null ? ContentIdentity::get($drift) : null,
             'slug_hint'     => $is_new
                 ? ContentIdentity::suggestBySlug($post_in['post_name'] ?? '', $post_in['post_type'] ?? 'post')
                 : null,
@@ -79,7 +88,7 @@ class ContentImporter
      * Apply an envelope.
      *
      * @param array<string, mixed> $envelope
-     * @param array{publish?: bool, overwrite_conflict?: bool} $args
+     * @param array{publish?: bool, overwrite_conflict?: bool, relink?: bool} $args
      * @return array<string, mixed>|WP_Error
      */
     public function import(array $envelope, array $args = [])
@@ -95,6 +104,26 @@ class ContentImporter
         $target = $this->resolveTarget($envelope);
         if (is_wp_error($target)) {
             return $target;
+        }
+
+        // A matching post exists but is linked under a different content id.
+        // Never silently duplicate it: require an explicit re-link, which
+        // re-keys that post to the incoming id (ContentIdentity::assign below).
+        $drift = $target === null ? $this->findDriftTarget($envelope) : null;
+        if ($drift !== null) {
+            if (empty($args['relink'])) {
+                return new WP_Error(
+                    'wphaven_link_drift',
+                    sprintf(
+                        /* translators: 1: post title, 2: local post id */
+                        __('"%1$s" already exists here as #%2$d but is linked under a different content id. Confirm re-linking to update #%2$d instead of creating a duplicate.', 'wphaven-connect'),
+                        (string) ($envelope['post']['post_title'] ?? ''),
+                        $drift
+                    ),
+                    ['status' => 409, 'target_id' => $drift]
+                );
+            }
+            $target = $drift;
         }
 
         $is_new   = $target === null;
@@ -200,6 +229,28 @@ class ContentImporter
         $post = $envelope['post'];
 
         return ContentIdentity::findAdoptable(
+            (string) ($post['post_type'] ?? 'post'),
+            (string) ($post['post_name'] ?? ''),
+            (int) ($post['source_post_id'] ?? 0)
+        );
+    }
+
+    /**
+     * When resolveTarget() found nothing, look for a matching local post that is
+     * already linked under a different content id (see
+     * ContentIdentity::findDrifted()). Gated on the same option as adoption.
+     *
+     * @param array<string, mixed> $envelope
+     */
+    private function findDriftTarget(array $envelope): ?int
+    {
+        if (! $this->adoptionEnabled()) {
+            return null;
+        }
+
+        $post = $envelope['post'];
+
+        return ContentIdentity::findDrifted(
             (string) ($post['post_type'] ?? 'post'),
             (string) ($post['post_name'] ?? ''),
             (int) ($post['source_post_id'] ?? 0)

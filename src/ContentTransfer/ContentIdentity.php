@@ -11,6 +11,10 @@ use WP_Error;
  * `_wphaven_content_id` postmeta is the canonical key. The UUID is minted the
  * first time a post is transferred (in either direction) and persisted on both
  * the source and destination so subsequent transfers re-link the same records.
+ *
+ * Read-only operations (listing, previews) must not mint: if each environment
+ * mints its own id for the same post before they are paired, the two can never
+ * auto-link again (see findDrifted()).
  */
 class ContentIdentity
 {
@@ -142,6 +146,51 @@ class ContentIdentity
         }
 
         return null;
+    }
+
+    /**
+     * Find a local post that is clearly "the same" as the incoming one but is
+     * already linked under a DIFFERENT content id -- "link drift", which happens
+     * when both environments mint their own id for the same post before ever
+     * being paired (e.g. one side exported/listed it, the other pushed it).
+     *
+     * findAdoptable() deliberately refuses linked posts, so without this the
+     * importer would silently create a `-2` duplicate. Callers must NOT adopt
+     * the result automatically: it is surfaced so the user can explicitly
+     * confirm re-linking (which re-keys the post to the incoming id).
+     *
+     * Only call this after findLocalPost() has come back empty for the
+     * incoming id. Matches, in order: same post ID + type + slug; else the one
+     * linked post of this type carrying this slug.
+     */
+    public static function findDrifted(string $post_type, string $slug, int $source_post_id): ?int
+    {
+        if ($post_type === '' || $slug === '') {
+            return null;
+        }
+
+        if ($source_post_id > 0) {
+            $post = get_post($source_post_id);
+            if ($post && $post->post_type === $post_type && $post->post_name === $slug && self::get($source_post_id) !== null) {
+                return (int) $post->ID;
+            }
+        }
+
+        $matches = get_posts([
+            'name'             => $slug,
+            'post_type'        => $post_type,
+            'post_status'      => ['publish', 'future', 'draft', 'pending', 'private'],
+            'posts_per_page'   => 2,
+            'fields'           => 'ids',
+            'no_found_rows'    => true,
+            'suppress_filters' => false,
+            'meta_query'       => [[
+                'key'     => self::META_KEY,
+                'compare' => 'EXISTS',
+            ]],
+        ]);
+
+        return count($matches) === 1 ? (int) $matches[0] : null;
     }
 
     /**

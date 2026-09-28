@@ -93,6 +93,7 @@ class BulkContentTransferProvider
                 'selectAll'     => __('Select all', 'wphaven-connect'),
                 'willAdopt'     => __('will overwrite existing #%s to match', 'wphaven-connect'),
                 'willCreate'    => __('will create new', 'wphaven-connect'),
+                'willRelink'    => __('already here as #%s but linked under a different id — will re-link it instead of duplicating', 'wphaven-connect'),
                 'checking'      => __('checking for conflicts…', 'wphaven-connect'),
                 'willUpdate'    => __('%s field(s) will change', 'wphaven-connect'),
                 'conflictWarn'  => __('⚠ edited locally more recently than this version — unchecked; re-check to overwrite anyway', 'wphaven-connect'),
