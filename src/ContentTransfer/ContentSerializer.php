@@ -62,6 +62,9 @@ class ContentSerializer
             ? ContentIdentity::ensure($post_id)
             : (ContentIdentity::get($post_id) ?? wp_generate_uuid4());
 
+        $meta            = $this->buildMeta($post_id);
+        $media_meta_keys = $this->acfMediaMetaKeys($post_id, $meta);
+
         $payload = [
             'envelope_version'    => self::ENVELOPE_VERSION,
             'content_id'          => $content_id,
@@ -70,10 +73,13 @@ class ContentSerializer
             'generated_at_gmt'    => gmdate('Y-m-d\TH:i:s\Z'),
             'source_modified_gmt' => $post->post_modified_gmt,
             'post'                => $this->buildPostFields($post),
-            'meta'                => $this->buildMeta($post_id),
+            'meta'                => $meta,
+            // Meta keys whose values are attachment ids; only these get their
+            // ids remapped on import, so unrelated numeric meta is left alone.
+            'media_meta_keys'     => $media_meta_keys,
             'terms'               => $this->buildTerms($post),
             'featured_image'      => $this->buildFeaturedImage($post_id),
-            'media_manifest'      => $this->buildMediaManifest($post),
+            'media_manifest'      => $this->buildMediaManifest($post, $meta, $media_meta_keys),
         ];
 
         $payload = apply_filters('wphaven_content_export_payload', $payload, $post);
@@ -171,12 +177,15 @@ class ContentSerializer
     }
 
     /**
-     * Collect every image the post references: featured image, top-level ACF
-     * image/gallery/file fields, and images embedded in the content.
+     * Collect every image the post references: featured image, ACF
+     * image/gallery/file fields (at any nesting depth), and images embedded in
+     * the content.
      *
+     * @param array<string, array<int, mixed>> $meta
+     * @param string[]                         $media_meta_keys
      * @return array<int, array<string, mixed>>
      */
-    private function buildMediaManifest(WP_Post $post): array
+    private function buildMediaManifest(WP_Post $post, array $meta, array $media_meta_keys): array
     {
         $items = [];
 
@@ -185,7 +194,7 @@ class ContentSerializer
             $this->addManifestItem($items, $this->buildMediaItem($thumb_id));
         }
 
-        foreach ($this->collectAcfAttachmentIds($post->ID) as $att_id) {
+        foreach ($this->collectAcfAttachmentIds($meta, $media_meta_keys) as $att_id) {
             $this->addManifestItem($items, $this->buildMediaItem($att_id));
         }
 
@@ -263,63 +272,76 @@ class ContentSerializer
     }
 
     /**
-     * Attachment ids referenced by top-level ACF image/gallery/file fields.
-     * Nested (repeater/flexible/clone) fields are out of scope for v1.
+     * Meta keys holding ACF image/file/gallery values, including sub-fields
+     * nested in repeaters, flexible content, groups and clones.
      *
+     * ACF stores each value's field key in a sibling `_{meta_key}` row, so
+     * resolving that reference identifies the field type without having to
+     * rebuild nested meta names (e.g. `sections_0_slides_2_image`) from the
+     * field group structure.
+     *
+     * @param array<string, array<int, mixed>> $meta
+     * @return string[]
+     */
+    private function acfMediaMetaKeys(int $post_id, array $meta): array
+    {
+        if (! function_exists('acf_get_field')) {
+            return [];
+        }
+
+        $types = (array) apply_filters('wphaven_content_acf_media_field_types', ['image', 'file', 'gallery']);
+
+        $keys = [];
+        foreach (array_keys($meta) as $key) {
+            $key = (string) $key;
+            if ($key === '' || $key[0] === '_' || ! isset($meta['_' . $key])) {
+                continue;
+            }
+
+            $field_key = $meta['_' . $key][0] ?? '';
+            if (! is_string($field_key) || strpos($field_key, 'field_') !== 0) {
+                continue;
+            }
+
+            $field = acf_get_field($field_key);
+
+            // Cloned sub-fields reference a composite key ("field_clone_field_sub");
+            // the original sub-field is the last segment.
+            $last = strrpos($field_key, 'field_');
+            if (! $field && $last > 0) {
+                $field = acf_get_field(substr($field_key, $last));
+            }
+
+            if (is_array($field) && in_array($field['type'] ?? '', $types, true)) {
+                $keys[] = $key;
+            }
+        }
+
+        return (array) apply_filters('wphaven_content_media_meta_keys', $keys, $post_id);
+    }
+
+    /**
+     * Attachment ids stored under the given ACF media meta keys.
+     *
+     * @param array<string, array<int, mixed>> $meta
+     * @param string[]                         $media_meta_keys
      * @return array<int, int>
      */
-    private function collectAcfAttachmentIds(int $post_id): array
+    private function collectAcfAttachmentIds(array $meta, array $media_meta_keys): array
     {
-        if (! function_exists('get_field_objects')) {
-            return [];
-        }
-
-        $fields = get_field_objects($post_id, false);
-        if (! is_array($fields)) {
-            return [];
-        }
-
         $ids = [];
-        foreach ($fields as $field) {
-            if (! isset($field['type'], $field['value'])) {
-                continue;
-            }
-            if (! in_array($field['type'], ['image', 'file'], true) && $field['type'] !== 'gallery') {
-                continue;
-            }
-            foreach ((array) $field['value'] as $value) {
-                $id = $this->attachmentIdFromAcfValue($value);
-                if ($id) {
-                    $ids[] = $id;
+        foreach ($media_meta_keys as $key) {
+            foreach ((array) ($meta[$key] ?? []) as $value) {
+                // Gallery values are arrays of ids; image/file values are scalars.
+                foreach ((array) $value as $item) {
+                    if (is_numeric($item) && (int) $item > 0) {
+                        $ids[] = (int) $item;
+                    }
                 }
             }
         }
 
         return array_values(array_unique($ids));
-    }
-
-    /**
-     * An ACF image/file value can be an id, a URL, or an array depending on the
-     * field's return format. Resolve it to an attachment id where possible.
-     *
-     * @param mixed $value
-     */
-    private function attachmentIdFromAcfValue($value): int
-    {
-        if (is_numeric($value)) {
-            return (int) $value;
-        }
-        if (is_array($value) && isset($value['ID'])) {
-            return (int) $value['ID'];
-        }
-        if (is_array($value) && isset($value['id'])) {
-            return (int) $value['id'];
-        }
-        if (is_string($value)) {
-            return (int) attachment_url_to_postid($value);
-        }
-
-        return 0;
     }
 
     /**

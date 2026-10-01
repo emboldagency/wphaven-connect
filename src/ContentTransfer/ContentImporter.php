@@ -172,7 +172,14 @@ class ContentImporter
         }
 
         ContentIdentity::assign($post_id, $envelope['content_id']);
-        $this->applyMeta($post_id, (array) $envelope['meta'], $id_map, $url_map, $source_site_url);
+        $this->applyMeta(
+            $post_id,
+            (array) $envelope['meta'],
+            isset($envelope['media_meta_keys']) ? (array) $envelope['media_meta_keys'] : null,
+            $id_map,
+            $url_map,
+            $source_site_url
+        );
         $this->applyFeaturedImage($post_id, $envelope['featured_image'] ?? null, $media->idMap());
         $this->applyTerms($post_id, (array) $envelope['terms']);
 
@@ -348,11 +355,17 @@ class ContentImporter
     }
 
     /**
+     * Attachment ids are only remapped under $media_meta_keys, so unrelated
+     * numeric meta that happens to equal a source attachment id is left alone.
+     * A null list (envelopes from senders that predate it) remaps every key, as
+     * before.
+     *
      * @param array<string, array<int, mixed>> $meta
-     * @param array<int, int>                   $id_map
-     * @param array<string, string>             $url_map
+     * @param string[]|null                    $media_meta_keys
+     * @param array<int, int>                  $id_map
+     * @param array<string, string>            $url_map
      */
-    private function applyMeta(int $post_id, array $meta, array $id_map, array $url_map, string $source_site_url): void
+    private function applyMeta(int $post_id, array $meta, ?array $media_meta_keys, array $id_map, array $url_map, string $source_site_url): void
     {
         foreach (array_keys(get_post_meta($post_id)) as $key) {
             if (in_array($key, ContentSerializer::META_DENYLIST, true)) {
@@ -367,15 +380,17 @@ class ContentImporter
             if (in_array($key, ContentSerializer::META_DENYLIST, true)) {
                 continue;
             }
+            $remap_ids = $media_meta_keys === null || in_array((string) $key, $media_meta_keys, true);
             foreach ((array) $values as $value) {
-                add_post_meta($post_id, $key, wp_slash($this->remapMetaValue($value, $id_map, $url_map, $source_site_url)));
+                add_post_meta($post_id, $key, wp_slash($this->remapMetaValue($value, $remap_ids ? $id_map : [], $url_map, $source_site_url)));
             }
         }
     }
 
     /**
-     * Remap a meta value: transferred attachment ids (ACF image/gallery), and,
-     * for strings, the media URLs and source domain (rewritten to this site).
+     * Remap a meta value: transferred attachment ids (ACF image/file/gallery;
+     * callers pass an empty $id_map for keys that don't hold ids), and, for
+     * strings, the media URLs and source domain (rewritten to this site).
      *
      * @param mixed                 $value
      * @param array<int, int>       $id_map

@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.34.5
+Stable tag: 0.34.6
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,10 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.34.6 =
+* Content sync now transfers ACF image, file and gallery fields nested in repeaters, flexible content, groups and clones, not just top-level fields
+* Fix content sync remapping unrelated numeric meta values that matched a transferred attachment id; ids are now only remapped in ACF media fields
 
 = 0.34.5 =
 * Fix UUID content sync drift bug
