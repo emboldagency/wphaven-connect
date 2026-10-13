@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.34.6
+Stable tag: 0.35.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.35.0 =
+* New public `app-name` REST endpoint so the WP Haven browser extension can recognize a site from any hostname, including dev copies in differently named workspaces
 
 = 0.34.6 =
 * Content sync now transfers ACF image, file and gallery fields nested in repeaters, flexible content, groups and clones, not just top-level fields
