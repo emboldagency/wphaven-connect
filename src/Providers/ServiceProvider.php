@@ -17,6 +17,7 @@ class ServiceProvider
         // so we don't include it here to avoid duplicate registration
 
         // Add other service providers here
+        AppNameServiceProvider::class,
         AssetUrlServiceProvider::class,
         BulkContentTransferProvider::class,
         ClientAlertsProvider::class,
