@@ -71,6 +71,18 @@ class DisableMailServiceProvider
 
             return false;
         }, 9999, 2);
+
+        // Mailgun's API mode replaces wp_mail() and never applies pre_wp_mail,
+        // but it sends nothing without an API key, which it reads at send time.
+        add_filter('option_mailgun', function ($options) {
+            if (!is_array($options)) {
+                return $options;
+            }
+
+            $options['apiKey'] = '';
+
+            return $options;
+        });
     }
 
     /**
