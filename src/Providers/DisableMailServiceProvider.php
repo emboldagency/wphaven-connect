@@ -57,11 +57,7 @@ class DisableMailServiceProvider
         }
 
         // Default Auto: Check environment
-        $is_prod = function_exists('wp_get_environment_type')
-            ? wp_get_environment_type() === 'production'
-            : Environment::is_production();
-
-        return !$is_prod;
+        return !Environment::is_production();
     }
 
     private function blockMail(): void
