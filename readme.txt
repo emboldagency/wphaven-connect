@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.35.0
+Stable tag: 0.35.1
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,11 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.35.1 =
+* Fix: Mailgun in API mode no longer sends real mail past the non-production mail block. It replaces wp_mail() and skipped the block until an admin visit deactivated the plugin
+* Fix: a site that sets only the legacy WP_ENV, or no environment at all, is no longer treated as production. Unconfigured sites are inferred from the home URL (*.embold.net, *.wphaven.dev and staging.* read as staging), never from the request Host header
+* The ?debug API bypass now needs WP_ENVIRONMENT_TYPE set explicitly; an inferred environment never opens it
 
 = 0.35.0 =
 * New public `app-name` REST endpoint so the WP Haven browser extension can recognize a site from any hostname, including dev copies in differently named workspaces

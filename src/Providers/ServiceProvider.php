@@ -86,9 +86,9 @@ class ServiceProvider
             return true;
         }
 
-        // Debugging option, local work only. Environment defaults to production,
-        // so a site that never sets WP_ENVIRONMENT_TYPE keeps this closed.
-        if (isset($_GET['debug']) && Environment::is_development()) {
+        // Debugging option, local work only. An inferred environment never
+        // opens it, so a site has to set WP_ENVIRONMENT_TYPE explicitly.
+        if (isset($_GET['debug']) && Environment::is_development() && !Environment::is_inferred()) {
             return true;
         }
 
