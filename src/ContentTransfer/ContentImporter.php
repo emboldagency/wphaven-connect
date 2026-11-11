@@ -176,6 +176,7 @@ class ContentImporter
             $post_id,
             (array) $envelope['meta'],
             isset($envelope['media_meta_keys']) ? (array) $envelope['media_meta_keys'] : null,
+            isset($envelope['wysiwyg_meta_keys']) ? (array) $envelope['wysiwyg_meta_keys'] : null,
             $id_map,
             $url_map,
             $source_site_url
@@ -360,12 +361,18 @@ class ContentImporter
      * A null list (envelopes from senders that predate it) remaps every key, as
      * before.
      *
+     * $wysiwyg_meta_keys gets the same wp-image-{id} class / embedded-image
+     * remap post_content gets, since ACF wysiwyg fields carry the same kind of
+     * HTML. A null list (older senders) remaps no key that way, since without
+     * it we can't tell a wysiwyg field from any other string meta.
+     *
      * @param array<string, array<int, mixed>> $meta
      * @param string[]|null                    $media_meta_keys
+     * @param string[]|null                    $wysiwyg_meta_keys
      * @param array<int, int>                  $id_map
      * @param array<string, string>            $url_map
      */
-    private function applyMeta(int $post_id, array $meta, ?array $media_meta_keys, array $id_map, array $url_map, string $source_site_url): void
+    private function applyMeta(int $post_id, array $meta, ?array $media_meta_keys, ?array $wysiwyg_meta_keys, array $id_map, array $url_map, string $source_site_url): void
     {
         foreach (array_keys(get_post_meta($post_id)) as $key) {
             if (in_array($key, ContentSerializer::META_DENYLIST, true)) {
@@ -380,9 +387,11 @@ class ContentImporter
             if (in_array($key, ContentSerializer::META_DENYLIST, true)) {
                 continue;
             }
-            $remap_ids = $media_meta_keys === null || in_array((string) $key, $media_meta_keys, true);
+            $remap_ids     = $media_meta_keys === null || in_array((string) $key, $media_meta_keys, true);
+            $remap_classes = $wysiwyg_meta_keys !== null && in_array((string) $key, $wysiwyg_meta_keys, true);
             foreach ((array) $values as $value) {
-                add_post_meta($post_id, $key, wp_slash($this->remapMetaValue($value, $remap_ids ? $id_map : [], $url_map, $source_site_url)));
+                $remapped = $this->remapMetaValue($value, $remap_ids ? $id_map : [], $url_map, $source_site_url, $remap_classes);
+                add_post_meta($post_id, $key, wp_slash($remapped));
             }
         }
     }
@@ -391,18 +400,21 @@ class ContentImporter
      * Remap a meta value: transferred attachment ids (ACF image/file/gallery;
      * callers pass an empty $id_map for keys that don't hold ids), and, for
      * strings, the media URLs and source domain (rewritten to this site).
+     * $remap_image_classes additionally swaps `wp-image-{id}` class / embedded
+     * JSON id references, the same way post_content already does -- only safe
+     * to pass for a known wysiwyg field, never for arbitrary string meta.
      *
      * @param mixed                 $value
      * @param array<int, int>       $id_map
      * @param array<string, string> $url_map
      * @return mixed
      */
-    private function remapMetaValue($value, array $id_map, array $url_map, string $source_site_url)
+    private function remapMetaValue($value, array $id_map, array $url_map, string $source_site_url, bool $remap_image_classes = false)
     {
         if (is_array($value)) {
             $out = [];
             foreach ($value as $k => $v) {
-                $out[$k] = $this->remapMetaValue($v, $id_map, $url_map, $source_site_url);
+                $out[$k] = $this->remapMetaValue($v, $id_map, $url_map, $source_site_url, $remap_image_classes);
             }
             return $out;
         }
@@ -412,7 +424,9 @@ class ContentImporter
         }
 
         if (is_string($value)) {
-            return $this->rewriteReferences($value, $url_map, $source_site_url);
+            return $remap_image_classes
+                ? $this->remapContent($value, $id_map, $url_map, $source_site_url)
+                : $this->rewriteReferences($value, $url_map, $source_site_url);
         }
 
         return $value;

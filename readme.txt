@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.35.1
+Stable tag: 0.36.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,9 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.36.0 =
+* Content sync now transfers images embedded in ACF wysiwyg fields (at any nesting depth), not just post_content. Previously those images were invisible to a transfer's media manifest, so they never got sideloaded to the destination -- the `<img>` tag survived with its original source-site URL, which browsers render as the image's alt text once that URL 404s on the destination.
 
 = 0.35.1 =
 * Fix: Mailgun in API mode no longer sends real mail past the non-production mail block. It replaces wp_mail() and skipped the block until an admin visit deactivated the plugin

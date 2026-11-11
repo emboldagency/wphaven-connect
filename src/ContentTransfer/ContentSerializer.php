@@ -62,8 +62,9 @@ class ContentSerializer
             ? ContentIdentity::ensure($post_id)
             : (ContentIdentity::get($post_id) ?? wp_generate_uuid4());
 
-        $meta            = $this->buildMeta($post_id);
-        $media_meta_keys = $this->acfMediaMetaKeys($post_id, $meta);
+        $meta              = $this->buildMeta($post_id);
+        $media_meta_keys   = $this->acfMediaMetaKeys($post_id, $meta);
+        $wysiwyg_meta_keys = $this->acfWysiwygMetaKeys($post_id, $meta);
 
         $payload = [
             'envelope_version'    => self::ENVELOPE_VERSION,
@@ -77,9 +78,12 @@ class ContentSerializer
             // Meta keys whose values are attachment ids; only these get their
             // ids remapped on import, so unrelated numeric meta is left alone.
             'media_meta_keys'     => $media_meta_keys,
+            // Meta keys holding ACF wysiwyg HTML; only these get the same
+            // wp-image-{id} class / embedded-image remap post_content gets.
+            'wysiwyg_meta_keys'   => $wysiwyg_meta_keys,
             'terms'               => $this->buildTerms($post),
             'featured_image'      => $this->buildFeaturedImage($post_id),
-            'media_manifest'      => $this->buildMediaManifest($post, $meta, $media_meta_keys),
+            'media_manifest'      => $this->buildMediaManifest($post, $meta, $media_meta_keys, $wysiwyg_meta_keys),
         ];
 
         $payload = apply_filters('wphaven_content_export_payload', $payload, $post);
@@ -178,14 +182,17 @@ class ContentSerializer
 
     /**
      * Collect every image the post references: featured image, ACF
-     * image/gallery/file fields (at any nesting depth), and images embedded in
-     * the content.
+     * image/gallery/file fields (at any nesting depth), images embedded in the
+     * content, and images embedded in ACF wysiwyg field values (at any nesting
+     * depth) -- these live in postmeta, not post_content, so scanning
+     * post_content alone never sees them.
      *
      * @param array<string, array<int, mixed>> $meta
      * @param string[]                         $media_meta_keys
+     * @param string[]                         $wysiwyg_meta_keys
      * @return array<int, array<string, mixed>>
      */
-    private function buildMediaManifest(WP_Post $post, array $meta, array $media_meta_keys): array
+    private function buildMediaManifest(WP_Post $post, array $meta, array $media_meta_keys, array $wysiwyg_meta_keys): array
     {
         $items = [];
 
@@ -199,6 +206,10 @@ class ContentSerializer
         }
 
         foreach ($this->collectContentImages($post->post_content) as $item) {
+            $this->addManifestItem($items, $item);
+        }
+
+        foreach ($this->collectAcfContentImages($meta, $wysiwyg_meta_keys) as $item) {
             $this->addManifestItem($items, $item);
         }
 
@@ -275,21 +286,52 @@ class ContentSerializer
      * Meta keys holding ACF image/file/gallery values, including sub-fields
      * nested in repeaters, flexible content, groups and clones.
      *
+     * @param array<string, array<int, mixed>> $meta
+     * @return string[]
+     */
+    private function acfMediaMetaKeys(int $post_id, array $meta): array
+    {
+        $types = (array) apply_filters('wphaven_content_acf_media_field_types', ['image', 'file', 'gallery']);
+        $keys  = $this->acfMetaKeysByType($meta, $types);
+
+        return (array) apply_filters('wphaven_content_media_meta_keys', $keys, $post_id);
+    }
+
+    /**
+     * Meta keys holding ACF wysiwyg values, including sub-fields nested in
+     * repeaters, flexible content, groups and clones. Images embedded in these
+     * fields never appear in post_content, since ACF stores them as their own
+     * postmeta rows.
+     *
+     * @param array<string, array<int, mixed>> $meta
+     * @return string[]
+     */
+    private function acfWysiwygMetaKeys(int $post_id, array $meta): array
+    {
+        $types = (array) apply_filters('wphaven_content_acf_wysiwyg_field_types', ['wysiwyg']);
+        $keys  = $this->acfMetaKeysByType($meta, $types);
+
+        return (array) apply_filters('wphaven_content_wysiwyg_meta_keys', $keys, $post_id);
+    }
+
+    /**
+     * Meta keys whose ACF field type is one of $types, including sub-fields
+     * nested in repeaters, flexible content, groups and clones.
+     *
      * ACF stores each value's field key in a sibling `_{meta_key}` row, so
      * resolving that reference identifies the field type without having to
      * rebuild nested meta names (e.g. `sections_0_slides_2_image`) from the
      * field group structure.
      *
      * @param array<string, array<int, mixed>> $meta
+     * @param string[]                         $types
      * @return string[]
      */
-    private function acfMediaMetaKeys(int $post_id, array $meta): array
+    private function acfMetaKeysByType(array $meta, array $types): array
     {
         if (! function_exists('acf_get_field')) {
             return [];
         }
-
-        $types = (array) apply_filters('wphaven_content_acf_media_field_types', ['image', 'file', 'gallery']);
 
         $keys = [];
         foreach (array_keys($meta) as $key) {
@@ -317,7 +359,7 @@ class ContentSerializer
             }
         }
 
-        return (array) apply_filters('wphaven_content_media_meta_keys', $keys, $post_id);
+        return $keys;
     }
 
     /**
@@ -342,6 +384,30 @@ class ContentSerializer
         }
 
         return array_values(array_unique($ids));
+    }
+
+    /**
+     * Images embedded in ACF wysiwyg meta values (e.g. the Analysis section of
+     * a policy set). These live in postmeta, not post_content, so
+     * collectContentImages() applied only to post_content never sees them.
+     *
+     * @param array<string, array<int, mixed>> $meta
+     * @param string[]                         $wysiwyg_meta_keys
+     * @return array<int, array<string, mixed>>
+     */
+    private function collectAcfContentImages(array $meta, array $wysiwyg_meta_keys): array
+    {
+        $items = [];
+
+        foreach ($wysiwyg_meta_keys as $key) {
+            foreach ((array) ($meta[$key] ?? []) as $value) {
+                if (is_string($value) && $value !== '') {
+                    array_push($items, ...$this->collectContentImages($value));
+                }
+            }
+        }
+
+        return $items;
     }
 
     /**
