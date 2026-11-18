@@ -262,8 +262,8 @@ class SettingsServiceProvider
         }
 
         // --- Live domain swapping (checkbox; absent means unchecked) ---
-        $output['live_domain_swap'] = isset($input['live_domain_swap']);
-        $output['link_on_first_transfer'] = isset($input['link_on_first_transfer']);
+        $output['live_domain_swap'] = !empty($input['live_domain_swap']);
+        $output['link_on_first_transfer'] = !empty($input['link_on_first_transfer']);
 
         if (isset($input['admin_login_slug'])) {
             $output['admin_login_slug'] = trim(sanitize_text_field($input['admin_login_slug']), '/');
@@ -277,12 +277,12 @@ class SettingsServiceProvider
 
         // --- Environment Indicator ---
         if (!defined('WPH_SHOW_ENVIRONMENT_INDICATOR')) {
-            $output['show_environment_indicator'] = isset($input['show_environment_indicator']);
+            $output['show_environment_indicator'] = !empty($input['show_environment_indicator']);
         }
 
         // --- Automatic minor core updates ---
         if (!defined(CoreAutoUpdatesProvider::CONSTANT_NAME)) {
-            $output[CoreAutoUpdatesProvider::OPTION_KEY] = isset($input[CoreAutoUpdatesProvider::OPTION_KEY]);
+            $output[CoreAutoUpdatesProvider::OPTION_KEY] = !empty($input[CoreAutoUpdatesProvider::OPTION_KEY]);
         }
 
         // --- Mail Mode ---
