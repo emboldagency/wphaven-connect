@@ -121,7 +121,7 @@ class ServiceProvider
      *
      * @return string|null
      */
-    private static function configuredSecret()
+    protected static function configuredSecret()
     {
         if (defined('WPHAVEN_CONNECT_SECRET') && WPHAVEN_CONNECT_SECRET) {
             return (string) WPHAVEN_CONNECT_SECRET;
