@@ -33,6 +33,14 @@ jQuery(document).ready(function($) {
         $messages.empty().append($notice);
     }
 
+    function formOverheadBytes() {
+        let text = 0;
+        $form.find('input[type="text"], input[type="email"], textarea').each(function() {
+            text += new Blob([$(this).val() || '']).size;
+        });
+        return text + 64 * 1024;
+    }
+
     function fileErrors(files) {
         const errors = [];
         let total = 0;
@@ -52,7 +60,8 @@ jQuery(document).ready(function($) {
             }
         });
 
-        if (!errors.length && settings.maxTotalBytes && total > settings.maxTotalBytes) {
+        // Leave room for the text fields and multipart headers, which also count toward post_max_size.
+        if (!errors.length && settings.maxTotalBytes && total + formOverheadBytes() > settings.maxTotalBytes) {
             errors.push('The files add up to more than this server accepts (' + formatBytes(settings.maxTotalBytes) + ' in total).');
         }
 
