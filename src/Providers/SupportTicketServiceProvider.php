@@ -226,10 +226,20 @@ class SupportTicketServiceProvider extends ServiceProvider
             return;
         }
 
-        $files = $this->attachmentsEnabled() ? $this->uploadedAttachments() : [];
-        if (is_wp_error($files)) {
-            wp_send_json_error(['message' => $files->get_error_message()]);
-            return;
+        if (!$this->attachmentsEnabled()) {
+            $files = [];
+            if ($this->hasUploadedFiles()) {
+                wp_send_json_error([
+                    'message' => 'This site can no longer send attachments. Remove the files and send the ticket again.',
+                ]);
+                return;
+            }
+        } else {
+            $files = $this->uploadedAttachments();
+            if (is_wp_error($files)) {
+                wp_send_json_error(['message' => $files->get_error_message()]);
+                return;
+            }
         }
 
         // admin-ajax.php does not raise memory the way admin.php does, and the
@@ -306,6 +316,19 @@ class SupportTicketServiceProvider extends ServiceProvider
         $limit = $this->maxRequestBytes();
 
         return $limit > 0 && $length > $limit;
+    }
+
+    private function hasUploadedFiles(): bool
+    {
+        $errors = (array) ($_FILES['attachments']['error'] ?? []);
+
+        foreach ($errors as $error) {
+            if ((int) $error !== UPLOAD_ERR_NO_FILE) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
