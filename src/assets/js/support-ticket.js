@@ -21,8 +21,15 @@ jQuery(document).ready(function($) {
         return bytes + ' B';
     }
 
+    // Files chosen so far; each pick adds to this instead of replacing it, so files can come from several folders.
+    let chosenFiles = [];
+
+    function fileKey(file) {
+        return file.name + '|' + file.size + '|' + file.lastModified;
+    }
+
     function selectedFiles() {
-        return $fileInput.length ? Array.from($fileInput[0].files || []) : [];
+        return chosenFiles.slice();
     }
 
     function showErrors(errors) {
@@ -71,24 +78,47 @@ jQuery(document).ready(function($) {
     function renderFileList() {
         $fileList.empty();
 
-        selectedFiles().forEach(function(file) {
+        chosenFiles.forEach(function(file, index) {
             $fileList.append(
                 $('<li></li>')
                     .append($('<span class="wphaven-attachment-name"></span>').text(file.name))
                     .append($('<span class="wphaven-attachment-size"></span>').text(formatBytes(file.size)))
+                    .append(
+                        $('<button type="button" class="button-link wphaven-attachment-remove">Remove</button>')
+                            .attr('aria-label', 'Remove ' + file.name)
+                            .data('index', index)
+                    )
             );
         });
     }
 
-    $fileInput.on('change', function() {
+    function filesChanged() {
         renderFileList();
 
-        const errors = fileErrors(selectedFiles());
+        const errors = fileErrors(chosenFiles);
         if (errors.length) {
             showErrors(errors);
         } else {
             $messages.empty();
         }
+    }
+
+    $fileInput.on('change', function() {
+        const known = chosenFiles.map(fileKey);
+        Array.from(this.files || []).forEach(function(file) {
+            if (!known.includes(fileKey(file))) {
+                chosenFiles.push(file);
+            }
+        });
+
+        // Empty the input so picking the same file again after removing it still fires change.
+        this.value = '';
+        filesChanged();
+    });
+
+    $fileList.on('click', '.wphaven-attachment-remove', function() {
+        chosenFiles.splice($(this).data('index'), 1);
+        filesChanged();
     });
 
     $form.on('submit', function(e) {
@@ -128,6 +158,7 @@ jQuery(document).ready(function($) {
             if (response && response.success) {
                 // Clear form fields and show success message
                 $form[0].reset();
+                chosenFiles = [];
                 renderFileList();
                 $successMessage.show();
 

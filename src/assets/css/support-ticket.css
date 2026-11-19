@@ -93,7 +93,17 @@
     white-space: nowrap;
 }
 
+.wphaven-attachment-name {
+    flex: 1;
+}
+
 .wphaven-attachment-size {
     flex-shrink: 0;
     color: #646970;
+}
+
+#wphaven-support-widget .wphaven-attachment-remove {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #b32d2e;
 }
