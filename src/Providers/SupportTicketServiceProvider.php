@@ -16,6 +16,9 @@ class SupportTicketServiceProvider extends ServiceProvider
     /** The file types WP Haven accepts on a ticket. */
     const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'txt', 'log'];
 
+    /** Subscribers and shop customers can reach the dashboard but should not open tickets. */
+    const REQUIRED_CAPABILITY = 'edit_posts';
+
     private function getApiBase()
     {
         // Allow override via constant or plugin option: Constant > Plugin Option > Default
@@ -51,6 +54,10 @@ class SupportTicketServiceProvider extends ServiceProvider
 
     public function addDashboardWidget()
     {
+        if (!current_user_can(self::REQUIRED_CAPABILITY)) {
+            return;
+        }
+
         // Check if support is enabled for this site (cached)
         $support_status = get_transient('wphaven_support_status');
 
@@ -72,7 +79,7 @@ class SupportTicketServiceProvider extends ServiceProvider
 
     public function enqueueDashboardScripts($hook)
     {
-        if ($hook !== 'index.php') {
+        if ($hook !== 'index.php' || !current_user_can(self::REQUIRED_CAPABILITY)) {
             return;
         }
 
@@ -217,6 +224,11 @@ class SupportTicketServiceProvider extends ServiceProvider
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'wphaven_support_nonce')) {
             wp_send_json_error(['message' => 'Your session has expired. Reload the page and try again.']);
+            return;
+        }
+
+        if (!current_user_can(self::REQUIRED_CAPABILITY)) {
+            wp_send_json_error(['message' => 'You do not have permission to open support tickets.']);
             return;
         }
 
