@@ -201,8 +201,12 @@ class SupportTicketServiceProvider extends ServiceProvider
             <div id="wphaven-success-message" style="display:none;">
                 <div class="wphaven-success-notice">
                     <p><strong>Support ticket created successfully!</strong></p>
+                    <p id="wphaven-success-summary"></p>
                     <p>We'll email you with a reply after your ticket has been reviewed.</p>
                 </div>
+                <p>
+                    <button type="button" class="button" id="wphaven-send-another">Send another ticket</button>
+                </p>
             </div>
         </div>
         <?php

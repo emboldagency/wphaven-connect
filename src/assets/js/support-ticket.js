@@ -121,6 +121,12 @@ jQuery(document).ready(function($) {
         filesChanged();
     });
 
+    $('#wphaven-send-another').on('click', function() {
+        $successMessage.hide();
+        $form.show();
+        $('#wphaven-subject').trigger('focus');
+    });
+
     $form.on('submit', function(e) {
         e.preventDefault();
 
@@ -156,16 +162,19 @@ jQuery(document).ready(function($) {
             contentType: false,
         }).done(function(response) {
             if (response && response.success) {
-                // Clear form fields and show success message
+                const subject = $('#wphaven-subject').val();
+                let summary = '"' + subject + '"';
+                if (files.length) {
+                    summary += ' with ' + files.length + (files.length === 1 ? ' attachment' : ' attachments');
+                }
+                $('#wphaven-success-summary').text(summary);
+
+                // The confirmation stays until the user asks for a new form, so it can't be missed during a long upload.
                 $form[0].reset();
                 chosenFiles = [];
                 renderFileList();
+                $form.hide();
                 $successMessage.show();
-
-                // Hide success message after 5 seconds
-                setTimeout(function() {
-                    $successMessage.fadeOut();
-                }, 5000);
             } else {
                 showErrors([(response && response.data && response.data.message) || 'An error occurred. Please try again.']);
             }
