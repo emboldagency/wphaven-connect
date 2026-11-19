@@ -216,7 +216,8 @@ class SupportTicketServiceProvider extends ServiceProvider
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'wphaven_support_nonce')) {
-            wp_die('Security check failed');
+            wp_send_json_error(['message' => 'Your session has expired. Reload the page and try again.']);
+            return;
         }
 
         // Get support status (should be cached)
