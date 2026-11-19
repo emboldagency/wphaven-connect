@@ -232,6 +232,12 @@ class SupportTicketServiceProvider extends ServiceProvider
             return;
         }
 
+        // admin-ajax.php does not raise memory the way admin.php does, and the
+        // multipart body holds every file in memory.
+        if ($files) {
+            wp_raise_memory_limit('admin');
+        }
+
         // Prepare data for API
         $ticket_data = [
             'site_id' => $support_status['site_id'],
