@@ -127,17 +127,21 @@ class MediaUrl
     }
 
     /**
-     * Placeholder tokens for every scheme/www spelling of the ASSET_URL base,
-     * so a search-replace can shield production media and restore it after:
-     * strtr($text, $map) before replacing, strtr($text, array_flip($map)) after.
+     * Placeholder tokens for every scheme/www spelling of the ASSET_URL uploads
+     * base, so a search-replace can shield production media (and only media)
+     * and restore it after: strtr($text, $map) before, strtr($text,
+     * array_flip($map)) after.
      *
      * @return array<string, string> spelling => token
      */
     public static function assetShieldMap(): array
     {
+        $upload_dir = wp_upload_dir();
+        $uploads_path = rtrim((string) wp_parse_url($upload_dir['baseurl'], PHP_URL_PATH), '/');
+
         $map = [];
         foreach (self::assetHosts() as $i => $host) {
-            $map['//'.$host.self::assetPath()] = '%%WPHAVEN_ASSET_URL_'.$i.'%%';
+            $map['//'.$host.self::assetPath().$uploads_path.'/'] = '%%WPHAVEN_ASSET_URL_'.$i.'%%';
         }
 
         return $map;
