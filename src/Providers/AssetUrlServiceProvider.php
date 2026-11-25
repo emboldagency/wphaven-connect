@@ -2,6 +2,8 @@
 
 namespace WPHavenConnect\Providers;
 
+use WPHavenConnect\ContentTransfer\MediaUrl;
+
 class AssetUrlServiceProvider
 {
     public function register()
@@ -14,50 +16,18 @@ class AssetUrlServiceProvider
 
     public function custom_asset_url($url)
     {
-        if (defined('ASSET_URL')) {
-            // Check if the local file exists
-            if (! $this->file_exists_locally($url)) {
-                $upload_dir = wp_upload_dir();
-                $uploads_baseurl = $upload_dir['baseurl'];
-
-                // Determine the base directory relative to the site URL
-                $relative_path = str_replace(site_url(), '', $uploads_baseurl);
-
-                // Extract the relative path from the full URL
-                $relative_path_from_url = str_replace($uploads_baseurl, $relative_path, $url);
-
-                // Determine the base URL from ASSET_URL
-                $asset_baseurl = rtrim(ASSET_URL, '/');
-
-                // Reconstruct the URL with ASSET_URL and relative path
-                $url = $asset_baseurl.$relative_path_from_url;
-            }
-        }
-
-        return $url;
+        return is_string($url) ? $this->to_asset_url($url) : $url;
     }
 
     public function custom_asset_srcset($sources, $size_array, $image_src, $image_meta, $attachment_id)
     {
-        if (defined('ASSET_URL')) {
-            $upload_dir = wp_upload_dir();
-            $uploads_baseurl = $upload_dir['baseurl'];
+        if (! is_array($sources)) {
+            return $sources;
+        }
 
-            // Determine the base directory relative to the site URL
-            $relative_path = str_replace(site_url(), '', $uploads_baseurl);
-
-            foreach ($sources as &$source) {
-                // Check if the local file exists
-                if (! $this->file_exists_locally($source['url'])) {
-                    // Extract the relative path from the full URL
-                    $relative_path_from_url = str_replace($uploads_baseurl, $relative_path, $source['url']);
-
-                    // Determine the base URL from ASSET_URL
-                    $asset_baseurl = rtrim(ASSET_URL, '/');
-
-                    // Reconstruct the URL with ASSET_URL and relative path
-                    $source['url'] = $asset_baseurl.$relative_path_from_url;
-                }
+        foreach ($sources as &$source) {
+            if (isset($source['url']) && is_string($source['url'])) {
+                $source['url'] = $this->to_asset_url($source['url']);
             }
         }
 
@@ -66,37 +36,60 @@ class AssetUrlServiceProvider
 
     public function custom_post_thumbnail_html($html, $post_id, $post_thumbnail_id, $size, $attr)
     {
-        if (defined('ASSET_URL')) {
-            // Check if the local file exists
-            if (! $this->file_exists_locally($html)) {
-                $upload_dir = wp_upload_dir();
-                $uploads_baseurl = $upload_dir['baseurl'];
-
-                // Determine the base directory relative to the site URL
-                $relative_path = str_replace(site_url(), '', $uploads_baseurl);
-
-                // Replace the URL in the src attribute
-                $relative_path_from_url = str_replace($uploads_baseurl, $relative_path, $html);
-                $asset_baseurl = rtrim(ASSET_URL, '/');
-                $html = str_replace($uploads_baseurl, $asset_baseurl, $relative_path_from_url);
-            }
+        if (! $this->asset_baseurl() || ! is_string($html) || $html === '') {
+            return $html;
         }
 
-        return $html;
+        $uploads_path = $this->uploads_path();
+        if ($uploads_path === '') {
+            return $html;
+        }
+
+        $pattern = '#(?:https?:)?//[^\s"\'/]+'.preg_quote($uploads_path, '#').'/[^\s"\',]+#i';
+
+        return preg_replace_callback($pattern, function ($matches) {
+            return $this->to_asset_url($matches[0]);
+        }, $html);
     }
 
-    private function file_exists_locally($url)
+    /**
+     * Point a local uploads URL at ASSET_URL when the file is missing here.
+     * Matches the uploads base by path, so an http/https mismatch between
+     * siteurl and the request can't leave the full URL behind ASSET_URL.
+     */
+    private function to_asset_url(string $url): string
+    {
+        $asset_baseurl = $this->asset_baseurl();
+        if (! $asset_baseurl || strpos($url, $asset_baseurl.'/') === 0) {
+            return $url;
+        }
+
+        $relative = MediaUrl::relativePath($url);
+        if ($relative === null || $relative === '' || $this->file_exists_locally($relative)) {
+            return $url;
+        }
+
+        return $asset_baseurl.$this->uploads_path().'/'.$relative;
+    }
+
+    private function asset_baseurl(): string
+    {
+        return defined('ASSET_URL') && ASSET_URL ? rtrim((string) ASSET_URL, '/') : '';
+    }
+
+    private function uploads_path(): string
     {
         $upload_dir = wp_upload_dir();
-        $uploads_baseurl = $upload_dir['baseurl'];
+        $path = wp_parse_url($upload_dir['baseurl'], PHP_URL_PATH);
 
-        $uploads_directory = str_replace(site_url(), '', $upload_dir['basedir']);
+        return is_string($path) ? rtrim($path, '/') : '';
+    }
 
-        $file_path = str_replace($uploads_baseurl, '', $url);
+    private function file_exists_locally(string $relative): bool
+    {
+        $upload_dir = wp_upload_dir();
 
-        $full_file_path = $uploads_directory.$file_path;
-
-        return file_exists($full_file_path);
+        return file_exists(trailingslashit($upload_dir['basedir']).$relative);
     }
 
     public function prevent_production_asset_deletion($post_id)
