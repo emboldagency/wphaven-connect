@@ -135,6 +135,7 @@ class DatabaseTransferServiceProvider
 
         $repo->atomicSwap($base, $full);
         $repo->dropBackup($base);
+        do_action('wphaven_db_table_swapped', $base);
 
         return new WP_REST_Response(['ok' => true, 'replaced' => $stats['rows']], 200);
     }
@@ -284,6 +285,7 @@ class DatabaseTransferServiceProvider
             ->replaceInTable($repo->wpdb(), $repo->stageName($base), $repo->primaryKey($full));
         $repo->atomicSwap($base, $full);
         $repo->dropBackup($base);
+        do_action('wphaven_db_table_swapped', $base);
 
         return ['phase' => 'done', 'done' => true, 'replaced' => $stats['rows']];
     }
