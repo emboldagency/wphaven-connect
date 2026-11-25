@@ -28,7 +28,7 @@ class MediaUrl
      */
     public static function classifyOrigin(string $url): string
     {
-        if (defined('ASSET_URL') && ASSET_URL && strpos($url, rtrim(ASSET_URL, '/')) === 0) {
+        if (self::isAssetUrl($url)) {
             return self::ORIGIN_PRODUCTION;
         }
 
@@ -60,13 +60,107 @@ class MediaUrl
             return ltrim(substr($url_host_relative, strlen($host_relative)), '/');
         }
 
-        if (defined('ASSET_URL') && ASSET_URL) {
-            $asset_baseurl = trailingslashit(rtrim(ASSET_URL, '/'));
-            if (strpos($url, $asset_baseurl) === 0) {
-                return ltrim(substr($url, strlen($asset_baseurl)), '/');
+        if (self::isAssetUrl($url)) {
+            $path = (string) wp_parse_url(self::withScheme($url), PHP_URL_PATH);
+            $path = substr($path, strlen(self::assetPath()));
+            $uploads_path = rtrim((string) wp_parse_url($upload_dir['baseurl'], PHP_URL_PATH), '/').'/';
+
+            if (strpos($path, $uploads_path) === 0) {
+                return ltrim(substr($path, strlen($uploads_path)), '/');
             }
         }
 
         return null;
+    }
+
+    /**
+     * ASSET_URL as a full base URL with no trailing slash, or '' when unset.
+     * Accepts "https://host", "http://host", "//host" and a bare "host"; the
+     * last two get https.
+     */
+    public static function assetBaseUrl(): string
+    {
+        if (! defined('ASSET_URL') || ! ASSET_URL) {
+            return '';
+        }
+
+        $url = trim((string) ASSET_URL);
+        if (strpos($url, '//') === 0) {
+            $url = 'https:'.$url;
+        } elseif (! preg_match('#^https?://#i', $url)) {
+            $url = 'https://'.$url;
+        }
+
+        return rtrim($url, '/');
+    }
+
+    /**
+     * The ASSET_URL host with and without "www.", for host allowlists.
+     *
+     * @return string[]
+     */
+    public static function assetHosts(): array
+    {
+        $host = self::hostKey(wp_parse_url(self::assetBaseUrl(), PHP_URL_HOST));
+
+        return $host === '' ? [] : [$host, 'www.'.$host];
+    }
+
+    /**
+     * Whether a URL points at the ASSET_URL host, ignoring scheme and "www.".
+     */
+    public static function isAssetUrl(string $url): bool
+    {
+        $asset_host = self::hostKey(wp_parse_url(self::assetBaseUrl(), PHP_URL_HOST));
+        if ($asset_host === '') {
+            return false;
+        }
+
+        $parts = wp_parse_url(self::withScheme($url));
+        if (! is_array($parts) || self::hostKey($parts['host'] ?? null) !== $asset_host) {
+            return false;
+        }
+
+        $asset_path = self::assetPath();
+
+        return $asset_path === '' || strpos(($parts['path'] ?? '').'/', $asset_path.'/') === 0;
+    }
+
+    /**
+     * Placeholder tokens for every scheme/www spelling of the ASSET_URL uploads
+     * base, so a search-replace can shield production media (and only media)
+     * and restore it after: strtr($text, $map) before, strtr($text,
+     * array_flip($map)) after.
+     *
+     * @return array<string, string> spelling => token
+     */
+    public static function assetShieldMap(): array
+    {
+        $upload_dir = wp_upload_dir();
+        $uploads_path = rtrim((string) wp_parse_url($upload_dir['baseurl'], PHP_URL_PATH), '/');
+
+        $map = [];
+        foreach (self::assetHosts() as $i => $host) {
+            $map['//'.$host.self::assetPath().$uploads_path.'/'] = '%%WPHAVEN_ASSET_URL_'.$i.'%%';
+        }
+
+        return $map;
+    }
+
+    private static function assetPath(): string
+    {
+        return rtrim((string) wp_parse_url(self::assetBaseUrl(), PHP_URL_PATH), '/');
+    }
+
+    private static function hostKey($host): string
+    {
+        $host = strtolower((string) $host);
+
+        return strpos($host, 'www.') === 0 ? substr($host, 4) : $host;
+    }
+
+    private static function withScheme(string $url): string
+    {
+        return strpos($url, '//') === 0 ? 'https:'.$url : $url;
     }
 }

@@ -2,6 +2,8 @@
 
 namespace WPHavenConnect\DatabaseTransfer;
 
+use WPHavenConnect\ContentTransfer\MediaUrl;
+
 /**
  * Serialized-data-safe search/replace, used to rewrite the source environment's
  * domain to the destination's after a table transfer.
@@ -57,14 +59,35 @@ class SearchReplace
             return;
         }
 
-        $this->pairs[] = [$from, $to];
+        foreach (self::hostVariants($from) as $variant) {
+            if ($variant === $to) {
+                continue;
+            }
 
-        // Protocol-relative form: //source-host → //target-host.
-        $from_rel = preg_replace('#^https?:#', '', $from);
-        $to_rel   = preg_replace('#^https?:#', '', $to);
-        if (is_string($from_rel) && $from_rel !== $from) {
-            $this->pairs[] = [$from_rel, $to_rel];
+            $this->pairs[] = [$variant, $to];
+
+            // Protocol-relative form: //source-host → //target-host.
+            $from_rel = preg_replace('#^https?:#', '', $variant);
+            $to_rel   = preg_replace('#^https?:#', '', $to);
+            if (is_string($from_rel) && $from_rel !== $variant) {
+                $this->pairs[] = [$from_rel, $to_rel];
+            }
         }
+    }
+
+    /**
+     * A URL plus its www/non-www twin, so links saved under either spelling of
+     * an environment's host get rewritten.
+     *
+     * @return string[]
+     */
+    public static function hostVariants(string $url): array
+    {
+        if (! preg_match('#^((?:https?:)?//)(www\.)?(.+)$#i', $url, $m)) {
+            return [$url];
+        }
+
+        return [$url, $m[1].($m[2] === '' ? 'www.' : '').$m[3]];
     }
 
     /**
@@ -123,11 +146,8 @@ class SearchReplace
     {
         // Shield ASSET_URL-hosted media (served from production) so its URLs are
         // never rewritten to another environment. URL mode only.
-        $token = '%%WPHAVEN_ASSET_URL%%';
-        $asset = ($this->shieldAsset && defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
-        if ($asset !== '' && strpos($value, $asset) !== false) {
-            $value = str_replace($asset, $token, $value);
-        }
+        $shield = $this->shieldAsset ? MediaUrl::assetShieldMap() : [];
+        $value = strtr($value, $shield);
 
         foreach ($this->pairs as [$search, $replacement]) {
             if ($search !== '' && strpos($value, $search) !== false) {
@@ -136,11 +156,7 @@ class SearchReplace
             }
         }
 
-        if ($asset !== '') {
-            $value = str_replace($token, $asset, $value);
-        }
-
-        return $value;
+        return strtr($value, array_flip($shield));
     }
 
     /**
