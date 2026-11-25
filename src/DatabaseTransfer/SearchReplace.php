@@ -59,14 +59,35 @@ class SearchReplace
             return;
         }
 
-        $this->pairs[] = [$from, $to];
+        foreach (self::hostVariants($from) as $variant) {
+            if ($variant === $to) {
+                continue;
+            }
 
-        // Protocol-relative form: //source-host → //target-host.
-        $from_rel = preg_replace('#^https?:#', '', $from);
-        $to_rel   = preg_replace('#^https?:#', '', $to);
-        if (is_string($from_rel) && $from_rel !== $from) {
-            $this->pairs[] = [$from_rel, $to_rel];
+            $this->pairs[] = [$variant, $to];
+
+            // Protocol-relative form: //source-host → //target-host.
+            $from_rel = preg_replace('#^https?:#', '', $variant);
+            $to_rel   = preg_replace('#^https?:#', '', $to);
+            if (is_string($from_rel) && $from_rel !== $variant) {
+                $this->pairs[] = [$from_rel, $to_rel];
+            }
         }
+    }
+
+    /**
+     * A URL plus its www/non-www twin, so links saved under either spelling of
+     * an environment's host get rewritten.
+     *
+     * @return string[]
+     */
+    public static function hostVariants(string $url): array
+    {
+        if (! preg_match('#^((?:https?:)?//)(www\.)?(.+)$#i', $url, $m)) {
+            return [$url];
+        }
+
+        return [$url, $m[1].($m[2] === '' ? 'www.' : '').$m[3]];
     }
 
     /**

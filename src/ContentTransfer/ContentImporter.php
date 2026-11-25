@@ -4,6 +4,7 @@ namespace WPHavenConnect\ContentTransfer;
 
 use WP_Error;
 use WP_Post;
+use WPHavenConnect\DatabaseTransfer\SearchReplace;
 use WPHavenConnect\Utilities\Environment;
 
 /**
@@ -524,12 +525,16 @@ class ContentImporter
         $shield = MediaUrl::assetShieldMap();
         $text = strtr($text, $shield);
 
-        $target = site_url();
-        if ($source_site_url && untrailingslashit($source_site_url) !== untrailingslashit($target)) {
-            $text = str_replace(untrailingslashit($source_site_url), untrailingslashit($target), $text);
+        $target = untrailingslashit(site_url());
+        foreach ($source_site_url ? SearchReplace::hostVariants(untrailingslashit($source_site_url)) : [] as $source) {
+            if ($source === $target) {
+                continue;
+            }
+
+            $text = str_replace($source, $target, $text);
             $text = str_replace(
-                preg_replace('#^https?:#', '', untrailingslashit($source_site_url)),
-                preg_replace('#^https?:#', '', untrailingslashit($target)),
+                preg_replace('#^https?:#', '', $source),
+                preg_replace('#^https?:#', '', $target),
                 $text
             );
         }
