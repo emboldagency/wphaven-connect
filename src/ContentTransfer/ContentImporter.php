@@ -521,11 +521,8 @@ class ContentImporter
             $text = str_replace($old_url, $new_url, $text);
         }
 
-        $token = '%%WPHAVEN_ASSET_URL%%';
-        $asset = (defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
-        if ($asset) {
-            $text = str_replace($asset, $token, $text);
-        }
+        $shield = MediaUrl::assetShieldMap();
+        $text = strtr($text, $shield);
 
         $target = site_url();
         if ($source_site_url && untrailingslashit($source_site_url) !== untrailingslashit($target)) {
@@ -537,11 +534,7 @@ class ContentImporter
             );
         }
 
-        if ($asset) {
-            $text = str_replace($token, $asset, $text);
-        }
-
-        return $text;
+        return strtr($text, array_flip($shield));
     }
 
     /**
@@ -559,11 +552,8 @@ class ContentImporter
             $hosts[] = $source;
         }
 
-        if (defined('ASSET_URL') && ASSET_URL) {
-            $asset = wp_parse_url(ASSET_URL, PHP_URL_HOST);
-            if ($asset) {
-                $hosts[] = $asset;
-            }
+        foreach (MediaUrl::assetHosts() as $asset) {
+            $hosts[] = $asset;
         }
 
         $production = wp_parse_url(TransferClient::productionUrl() ?? '', PHP_URL_HOST);

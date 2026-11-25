@@ -60,7 +60,7 @@ class AssetUrlServiceProvider
     private function to_asset_url(string $url): string
     {
         $asset_baseurl = $this->asset_baseurl();
-        if (! $asset_baseurl || strpos($url, $asset_baseurl.'/') === 0) {
+        if (! $asset_baseurl || MediaUrl::isAssetUrl($url)) {
             return $url;
         }
 
@@ -74,7 +74,7 @@ class AssetUrlServiceProvider
 
     private function asset_baseurl(): string
     {
-        return defined('ASSET_URL') && ASSET_URL ? rtrim((string) ASSET_URL, '/') : '';
+        return MediaUrl::assetBaseUrl();
     }
 
     private function uploads_path(): string
@@ -94,10 +94,10 @@ class AssetUrlServiceProvider
 
     public function prevent_production_asset_deletion($post_id)
     {
-        if (defined('ASSET_URL')) {
+        if (MediaUrl::assetBaseUrl()) {
             $file_url = wp_get_attachment_url($post_id);
 
-            if (strpos($file_url, ASSET_URL) !== false) {
+            if (is_string($file_url) && MediaUrl::isAssetUrl($file_url)) {
                 // Prevent deletion by stopping the process and throwing an error message
                 wp_die(
                     'Deletion of this asset is not allowed because it resides on the production server.',

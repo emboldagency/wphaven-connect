@@ -2,6 +2,8 @@
 
 namespace WPHavenConnect\DatabaseTransfer;
 
+use WPHavenConnect\ContentTransfer\MediaUrl;
+
 /**
  * Serialized-data-safe search/replace, used to rewrite the source environment's
  * domain to the destination's after a table transfer.
@@ -123,11 +125,8 @@ class SearchReplace
     {
         // Shield ASSET_URL-hosted media (served from production) so its URLs are
         // never rewritten to another environment. URL mode only.
-        $token = '%%WPHAVEN_ASSET_URL%%';
-        $asset = ($this->shieldAsset && defined('ASSET_URL') && ASSET_URL) ? rtrim(ASSET_URL, '/') : '';
-        if ($asset !== '' && strpos($value, $asset) !== false) {
-            $value = str_replace($asset, $token, $value);
-        }
+        $shield = $this->shieldAsset ? MediaUrl::assetShieldMap() : [];
+        $value = strtr($value, $shield);
 
         foreach ($this->pairs as [$search, $replacement]) {
             if ($search !== '' && strpos($value, $search) !== false) {
@@ -136,11 +135,7 @@ class SearchReplace
             }
         }
 
-        if ($asset !== '') {
-            $value = str_replace($token, $asset, $value);
-        }
-
-        return $value;
+        return strtr($value, array_flip($shield));
     }
 
     /**
