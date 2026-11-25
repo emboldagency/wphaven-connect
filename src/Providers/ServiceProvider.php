@@ -19,6 +19,7 @@ class ServiceProvider
         // Add other service providers here
         AppNameServiceProvider::class,
         AssetUrlServiceProvider::class,
+        BuilderCssCacheProvider::class,
         BulkContentTransferProvider::class,
         ClientAlertsProvider::class,
         CommandLineServiceProvider::class,
