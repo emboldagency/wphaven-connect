@@ -58,3 +58,52 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+/* Attachments */
+#wphaven-support-widget input[type="file"] {
+    max-width: 100%;
+}
+
+#wphaven-attachments-hint {
+    margin: 6px 0 0;
+}
+
+#wphaven-attachment-list {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+#wphaven-attachment-list:empty {
+    display: none;
+}
+
+#wphaven-attachment-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f0f1;
+    font-size: 12px;
+}
+
+.wphaven-attachment-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wphaven-attachment-name {
+    flex: 1;
+}
+
+.wphaven-attachment-size {
+    flex-shrink: 0;
+    color: #646970;
+}
+
+#wphaven-support-widget .wphaven-attachment-remove {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #b32d2e;
+}
