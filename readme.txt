@@ -3,7 +3,7 @@ Contributors: itsjustxan, emboldtyler
 Tags: admin, management
 Requires at least: 6.0
 Tested up to: 6.9.0
-Stable tag: 0.36.1
+Stable tag: 0.37.0
 Requires PHP: 7.4
 
 Provides functionality to connect to the remote maintenance and management platform.
@@ -13,6 +13,15 @@ Provides functionality to connect to the remote maintenance and management platf
 Provides functionality to connect to the remote maintenance and management platform.
 
 == Changelog ==
+
+= 0.37.0 =
+* New: attach files to support tickets sent to WP Haven. Attachments add to the list on each pick, oversized or unsendable files are refused with a message instead of being dropped, and an expired session shows a clear message. Support tickets are now limited to users who can edit posts.
+* New: after a database transfer or content push, Breakdance and Elementor CSS caches are cleared so each builder rebuilds its CSS on the next page view. Previously the destination kept pointing at generated CSS files it didn't have, and pages loaded unstyled until someone regenerated the CSS by hand.
+* Fix: media served from ASSET_URL no longer comes out as `https://production.comhttps://staging.com/wp-content/uploads/...` when the site's stored URL is http but the page is served over https. This also fixes the Media Library and builder editors on those sites.
+* Fix: ASSET_URL now accepts `https://host`, `http://host`, `//host` or a bare `host`, and treats www and non-www as the same site when deciding what counts as production media.
+* Fix: a database pull or content push into a site with ASSET_URL set now rewrites production page links, `siteurl` and `home` to the destination and only leaves production media alone. Previously every https production URL was left pointing at production, while http media URLs were repointed.
+* Fix: www and non-www spellings of an environment's URL are both rewritten during a database pull, content push and live domain swap.
+* Fix: content sync sends production-hosted media with its uploads-relative path, so the destination links the existing attachment instead of failing to match it.
 
 = 0.36.1 =
 * Fix: unchecked settings (live domain swap, link on first transfer, environment indicator, minor core auto-updates) no longer turn back on when the settings are saved again, including by an emBold WordPress Tweaks settings save.
